@@ -1,0 +1,20 @@
+{
+  "name": "asmrhoney-theater",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:ext": "vite build --config vite.extension.config.ts",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "preact": "^10.26.9"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.2",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}

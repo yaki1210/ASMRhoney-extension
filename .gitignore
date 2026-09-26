@@ -1,0 +1,8 @@
+node_modules
+dist
+dist-ext
+.DS_Store
+*.log
+.playwright-mcp
+theater-*.png
+drawer-*.png
