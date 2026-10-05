@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fetchComments } from "../data/client";
 import type { ClipDetail, ClipListItem, Comment, Creator, DrawerLayer, Lang, Trigger } from "../data/types";
-import { ClipList } from "../drawer/ClipList";
+import { ClipGrid } from "../browse/ClipGrid";
 import { CommentsPanel } from "../drawer/CommentsPanel";
 import { CreatorPanel } from "../drawer/CreatorPanel";
 import { copy } from "../i18n";
@@ -27,10 +27,10 @@ import {
   IconPause,
   IconPip,
   IconPlay,
-  IconSearch,
+  IconViews,
   IconVolume,
-  LogoMark,
 } from "../icons";
+import { Topbar } from "../shell/Topbar";
 import { usePlayer } from "./usePlayer";
 
 type Props = {
@@ -41,6 +41,9 @@ type Props = {
   counts: Record<string, number>;
   lang: Lang;
   onOpen: (slug: string) => void;
+  onHome: () => void;
+  onSearch: () => void;
+  onTag: (tag: string) => void;
 };
 
 function sameLayer(a: DrawerLayer, b: DrawerLayer) {
@@ -49,7 +52,7 @@ function sameLayer(a: DrawerLayer, b: DrawerLayer) {
   return true;
 }
 
-export function Player({ clip, catalog, streamers, triggers, counts, lang, onOpen }: Props) {
+export function Player({ clip, catalog, streamers, triggers, counts, lang, onOpen, onHome, onSearch, onTag }: Props) {
   const t = copy(lang);
   const p = usePlayer(clip);
   const barRef = useRef<HTMLDivElement>(null);
@@ -154,38 +157,25 @@ export function Player({ clip, catalog, streamers, triggers, counts, lang, onOpe
 
   return (
     <div class={`shell ${railOpen ? "is-rail" : ""}`}>
-      <header class="topbar">
-        <a class="brand" href="/" onClick={(e) => { e.preventDefault(); history.length > 1 ? history.back() : onOpen(clip.slug); }}>
-          <LogoMark />
-          <span class="brand-text">
-            <strong>ASMRHoney</strong>
-            <em>Theater</em>
-          </span>
-        </a>
-        <button class="search-btn" type="button" title={t.searchSoon} disabled>
-          <IconSearch />
-          <span>{t.searchSoon}</span>
+      <Topbar lang={lang} nav="clip" onHome={onHome} onSearch={onSearch}>
+        <button
+          class={`comment-bubble ${current?.type === "comments" ? "is-on" : ""}`}
+          type="button"
+          onClick={() => push({ type: "comments" })}
+          title={t.comments}
+        >
+          <IconComment />
+          <strong>{commentCount}</strong>
         </button>
-        <div class="top-actions">
-          <button
-            class={`comment-bubble ${current?.type === "comments" ? "is-on" : ""}`}
-            type="button"
-            onClick={() => push({ type: "comments" })}
-            title={t.comments}
-          >
-            <IconComment />
-            <strong>{commentCount}</strong>
-          </button>
-          <button
-            class={`ghost ${current?.type === "related" ? "is-on" : ""}`}
-            type="button"
-            onClick={() => push({ type: "related" })}
-            title={t.related}
-          >
-            <IconList />
-          </button>
-        </div>
-      </header>
+        <button
+          class={`ghost ${current?.type === "related" ? "is-on" : ""}`}
+          type="button"
+          onClick={() => push({ type: "related" })}
+          title={t.related}
+        >
+          <IconList />
+        </button>
+      </Topbar>
 
       <div class="workspace">
         <section class="theater">
@@ -370,17 +360,18 @@ export function Player({ clip, catalog, streamers, triggers, counts, lang, onOpe
                 {creator}
               </button>
               {views > 0 && (
-                <span class="stat">
-                  {formatCount(views)} {t.views}
+                <span class="stat view-count" title={t.views}>
+                  <IconViews />
+                  {formatCount(views)}
                 </span>
               )}
               {p.sleepUntil && <span class="stat gold">{formatDuration(sleepLeft)} 后暂停</span>}
             </div>
             <div class="tags">
               {(clip.tags || []).map((tag) => (
-                <span class={`tag ${tag === "nsfw" ? "is-hot" : ""}`} key={tag}>
+                <button class={`tag ${tag === "nsfw" ? "is-hot" : ""}`} key={tag} type="button" onClick={() => onTag(tag)}>
                   {triggerLabel(tag, triggers, lang)}
-                </span>
+                </button>
               ))}
             </div>
           </div>
@@ -395,6 +386,7 @@ export function Player({ clip, catalog, streamers, triggers, counts, lang, onOpe
           </div>
           {current?.type === "comments" && (
             <CommentsPanel
+              key={clip.slug}
               comments={comments}
               hasMore={commentCursor != null}
               loadingMore={loadingMore}
@@ -404,14 +396,17 @@ export function Player({ clip, catalog, streamers, triggers, counts, lang, onOpe
             />
           )}
           {current?.type === "related" && (
-            <ClipList
-              clips={related}
-              currentSlug={clip.slug}
-              counts={counts}
-              streamers={streamers}
-              lang={lang}
-              onOpen={onOpen}
-            />
+            <div class="rail-clips">
+              <ClipGrid
+                clips={related}
+                currentSlug={clip.slug}
+                counts={counts}
+                streamers={streamers}
+                lang={lang}
+                onOpen={onOpen}
+                onOpenCreator={(slug) => push({ type: "creator", slug })}
+              />
+            </div>
           )}
           {current?.type === "creator" && (
             <CreatorPanel

@@ -60,3 +60,48 @@ export function savePrefs(prefs: Prefs) {
     /* quota */
   }
 }
+
+const SEARCH_KEY = "ahx.recentSearch";
+
+export function loadRecentSearches(): string[] {
+  try {
+    const raw = localStorage.getItem(SEARCH_KEY);
+    if (!raw) return [];
+    const list = JSON.parse(raw) as unknown;
+    return Array.isArray(list) ? list.filter((x) => typeof x === "string").slice(0, 8) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function pushRecentSearch(q: string) {
+  const term = q.trim();
+  if (!term) return;
+  const next = [term, ...loadRecentSearches().filter((x) => x !== term)].slice(0, 8);
+  try {
+    localStorage.setItem(SEARCH_KEY, JSON.stringify(next));
+  } catch {
+    /* quota */
+  }
+}
+
+export type RecentProgress = Progress & { slug: string };
+
+export function listRecentProgress(limit = 8): RecentProgress[] {
+  const out: RecentProgress[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(PROGRESS_PREFIX)) continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const p = JSON.parse(raw) as Progress;
+      if (!Number.isFinite(p.t) || !Number.isFinite(p.updatedAt)) continue;
+      out.push({ slug: key.slice(PROGRESS_PREFIX.length), ...p });
+    }
+  } catch {
+    return [];
+  }
+  out.sort((a, b) => b.updatedAt - a.updatedAt);
+  return out.slice(0, limit);
+}

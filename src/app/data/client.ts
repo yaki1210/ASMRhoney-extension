@@ -1,4 +1,5 @@
-import type { ClipDetail, ClipListItem, CommentsPage, Creator, Trigger } from "./types";
+import { toPath } from "./routes";
+import type { ClipDetail, ClipListItem, CommentsPage, Creator, Lang, Trigger } from "./types";
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { cache: "no-cache", headers: { accept: "application/json" } });
@@ -7,7 +8,7 @@ async function getJson<T>(url: string): Promise<T> {
 }
 
 export function clipPath(slug: string, en = false) {
-  return `${en ? "/en" : ""}/clip/${encodeURIComponent(slug)}/`;
+  return toPath({ kind: "clip", slug }, (en ? "en" : "zh") as Lang);
 }
 
 export function parseClipSlug(pathname: string): string | null {
@@ -15,9 +16,7 @@ export function parseClipSlug(pathname: string): string | null {
   return m?.[1] ?? null;
 }
 
-export function isEnglishPath(pathname: string) {
-  return pathname === "/en" || pathname.startsWith("/en/");
-}
+export { isEnglishPath, parseRoute, toPath } from "./routes";
 
 export async function fetchClip(slug: string): Promise<ClipDetail> {
   const json = await getJson<{ clip?: ClipDetail } & ClipDetail>(

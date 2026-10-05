@@ -1,4 +1,5 @@
 import type { ComponentChildren } from "preact";
+import { useMemo, useState } from "preact/hooks";
 import type { Comment, Lang } from "../data/types";
 import { copy } from "../i18n";
 import { formatWhen, parseTimestamp } from "../lib";
@@ -13,6 +14,15 @@ type Props = {
 };
 
 const TS_RE = /(?:\d{1,2}:)?[0-5]?\d:[0-5]\d/g;
+const MJ_RE = /mj/i;
+
+export function isMjComment(comment: Comment) {
+  return MJ_RE.test(comment.body);
+}
+
+function fill(template: string, n: number) {
+  return template.replace("{n}", String(n));
+}
 
 function Body({ text, onSeek }: { text: string; onSeek: (s: number) => void }) {
   const nodes: ComponentChildren[] = [];
@@ -39,22 +49,42 @@ function Body({ text, onSeek }: { text: string; onSeek: (s: number) => void }) {
 
 export function CommentsPanel({ comments, hasMore, loadingMore, lang, onMore, onSeek }: Props) {
   const t = copy(lang);
+  const [showMj, setShowMj] = useState(false);
+  const mjComments = useMemo(() => comments.filter(isMjComment), [comments]);
+  const visible = showMj ? comments : comments.filter((c) => !isMjComment(c));
+  const mjCount = mjComments.length;
+
   if (!comments.length && !loadingMore) {
     return <p class="rail-empty">{t.commentsEmpty}</p>;
   }
+
   return (
     <div class="comment-list">
-      {comments.map((c) => (
-        <article class="comment" key={c.id}>
-          <header>
-            <b>{c.nickname || "游客"}</b>
-            <time>{formatWhen(c.created_at)}</time>
-          </header>
-          <p>
-            <Body text={c.body} onSeek={onSeek} />
-          </p>
-        </article>
-      ))}
+      {mjCount > 0 && (
+        <button
+          class={`mj-fold ${showMj ? "is-open" : ""}`}
+          type="button"
+          onClick={() => setShowMj((v) => !v)}
+        >
+          <span class="mj-fold-rule" />
+          <span>{fill(showMj ? t.commentsMjUnfold : t.commentsMjFold, mjCount)}</span>
+          <span class="mj-fold-rule" />
+        </button>
+      )}
+      {visible.map((c) => {
+        const mj = isMjComment(c);
+        return (
+          <article class={`comment${mj ? " is-mj" : ""}`} key={c.id}>
+            <header>
+              <b>{c.nickname || "游客"}</b>
+              <time>{formatWhen(c.created_at)}</time>
+            </header>
+            <p>
+              <Body text={c.body} onSeek={onSeek} />
+            </p>
+          </article>
+        );
+      })}
       {hasMore && (
         <button class="more-btn" type="button" onClick={onMore} disabled={loadingMore}>
           {t.commentsMore}

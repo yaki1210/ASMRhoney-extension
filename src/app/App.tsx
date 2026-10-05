@@ -1,47 +1,61 @@
+import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
+import { CreatorPage } from "./browse/CreatorPage";
+import { CreatorsPage } from "./browse/CreatorsPage";
+import { Home } from "./browse/Home";
+import { Library } from "./browse/Library";
 import {
   bootstrapClip,
-  clipPath,
+  ensureFullCatalog,
   fetchCatalog,
   fetchClip,
   fetchPlayCounts,
   fetchStreamers,
   fetchTriggers,
-  isEnglishPath,
-  parseClipSlug,
 } from "./data/client";
-import type { ClipDetail, ClipListItem, Creator, Lang, Trigger } from "./data/types";
+import { CATEGORIES, categoryTitle, libraryRouteForTag, parseRoute, toPath, type Route } from "./data/routes";
+import type { ClipDetail, ClipListItem, Creator, Trigger } from "./data/types";
 import { copy } from "./i18n";
+import { displayCreator } from "./lib";
 import { LogoMark } from "./icons";
+import { SearchOverlay } from "./overlays/SearchOverlay";
 import { Player } from "./player/Player";
+import { Topbar } from "./shell/Topbar";
 
-type Route = { kind: "clip"; slug: string } | { kind: "other" };
-
-function readRoute(): Route {
-  const slug = parseClipSlug(location.pathname);
-  return slug ? { kind: "clip", slug } : { kind: "other" };
+function read() {
+  return parseRoute(location.pathname, location.search);
 }
 
 export function App() {
-  const [route, setRoute] = useState<Route>(readRoute);
-  const [lang] = useState<Lang>(isEnglishPath(location.pathname) ? "en" : "zh");
+  const [{ lang, route }, setLoc] = useState(read);
   const [clip, setClip] = useState<ClipDetail | null>(() => {
     const boot = bootstrapClip();
-    const slug = parseClipSlug(location.pathname);
-    return boot && slug && boot.slug === slug ? boot : null;
+    return boot && route.kind === "clip" && boot.slug === route.slug ? boot : null;
   });
   const [catalog, setCatalog] = useState<ClipListItem[]>([]);
   const [streamers, setStreamers] = useState<Creator[]>([]);
   const [triggers, setTriggers] = useState<Trigger[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(route.kind === "clip");
   const [error, setError] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(() => route.kind === "home" && Boolean(route.q));
   const t = copy(lang);
   const streamerMap = useMemo(() => new Map(streamers.map((s) => [s.slug, s])), [streamers]);
   const triggerMap = useMemo(() => new Map(triggers.map((x) => [x.slug, x])), [triggers]);
 
+  const go = useCallback(
+    (next: Route, replace = false) => {
+      const url = toPath(next, lang);
+      if (replace) history.replaceState(next, "", url);
+      else history.pushState(next, "", url);
+      setLoc({ lang, route: next });
+      if (next.kind !== "home" || !next.q) setSearchOpen(false);
+    },
+    [lang],
+  );
+
   useEffect(() => {
-    const onPop = () => setRoute(readRoute());
+    const onPop = () => setLoc(read());
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -49,30 +63,45 @@ export function App() {
   useEffect(() => {
     void Promise.all([fetchCatalog(4), fetchStreamers(), fetchTriggers(), fetchPlayCounts()]).then(
       ([clips, people, tags, play]) => {
-        setCatalog(clips);
+        setCatalog((cur) => (cur.length > clips.length ? cur : clips));
         setStreamers(people);
         setTriggers(tags);
         setCounts(play);
       },
     );
+    void ensureFullCatalog().then((full) => {
+      if (full.length) {
+        full.sort((a, b) => +new Date(b.publishedAt) - +new Date(a.publishedAt));
+        setCatalog(full);
+      }
+    });
   }, []);
 
-  const openClip = useCallback(
-    (slug: string, replace = false) => {
-      const url = clipPath(slug, lang === "en");
-      if (replace) history.replaceState({ slug }, "", url);
-      else history.pushState({ slug }, "", url);
-      setRoute({ kind: "clip", slug });
-    },
-    [lang],
-  );
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const typing = Boolean(el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable));
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      } else if (e.key === "/" && !typing && !searchOpen) {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [searchOpen]);
 
   useEffect(() => {
-    if (route.kind === "other" && catalog[0]) openClip(catalog[0].slug, true);
-  }, [route, catalog, openClip]);
+    if (route.kind === "home" && route.q) setSearchOpen(true);
+  }, [route]);
 
   useEffect(() => {
-    if (route.kind !== "clip") return;
+    if (route.kind !== "clip") {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -92,47 +121,153 @@ export function App() {
     };
   }, [route]);
 
-  const openLatest = () => {
-    const latest = catalog[0];
-    if (latest) openClip(latest.slug, true);
+  useEffect(() => {
+    if (route.kind === "home") document.title = "ASMRHoney Theater";
+    else if (route.kind === "creators") document.title = `${t.creators} · ASMRHoney`;
+    else if (route.kind === "library") document.title = `${categoryTitle(route.id, lang)} · ASMRHoney`;
+    else if (route.kind === "creator") document.title = `${displayCreator(route.slug, streamerMap)} · ASMRHoney`;
+  }, [route, lang, t.creators]);
+
+  const openClip = (slug: string) => go({ kind: "clip", slug });
+  const openCreator = (slug: string) => go({ kind: "creator", slug });
+  const openHome = () => go({ kind: "home" });
+  const openTag = (tag: string) => go(libraryRouteForTag(tag));
+  const openCategory = (id: string) => {
+    const cat = CATEGORIES.find((c) => c.id === id);
+    go({ kind: "library", id, tags: cat?.tags || [] });
   };
 
-  if (route.kind === "other") {
-    return (
+  const closeSearch = () => {
+    setSearchOpen(false);
+    if (route.kind === "home" && route.q) go({ kind: "home" }, true);
+  };
+
+  const browseChrome = (nav: "home" | "library" | "creators", body: ComponentChildren) => (
+    <div class="shell">
+      <Topbar
+        lang={lang}
+        nav={nav}
+        onHome={openHome}
+        onSearch={() => setSearchOpen(true)}
+        onLibrary={() => openCategory("asmr")}
+        onCreators={() => go({ kind: "creators" })}
+      />
+      {body}
+    </div>
+  );
+
+  let page: ComponentChildren = null;
+
+  if (route.kind === "clip") {
+    if ((loading && !clip) || error || !clip) {
+      page = (
+        <div class="placeholder">
+          <LogoMark />
+          <h1>{error ? t.failed : t.loading}</h1>
+          {error && (
+            <button class="gold-btn" type="button" onClick={() => openClip(route.slug)}>
+              {t.retry}
+            </button>
+          )}
+        </div>
+      );
+    } else {
+      page = (
+        <Player
+          clip={clip}
+          catalog={catalog}
+          streamers={streamerMap}
+          triggers={triggerMap}
+          counts={counts}
+          lang={lang}
+          onOpen={openClip}
+          onHome={openHome}
+          onSearch={() => setSearchOpen(true)}
+          onTag={openTag}
+        />
+      );
+    }
+  } else if (route.kind === "creators") {
+    page = browseChrome(
+      "creators",
+      <CreatorsPage people={streamers} catalog={catalog} lang={lang} onOpen={(slug) => go({ kind: "creator", slug })} />,
+    );
+  } else if (route.kind === "creator") {
+    page = browseChrome(
+      "creators",
+      <CreatorPage
+        slug={route.slug}
+        catalog={catalog}
+        counts={counts}
+        streamers={streamerMap}
+        lang={lang}
+        onOpen={openClip}
+      />,
+    );
+  } else if (route.kind === "library") {
+    page = browseChrome(
+      "library",
+      <div class="page">
+        <section class="hero-block">
+          <p class="kicker">{t.library}</p>
+          <h1 class="home-title">{categoryTitle(route.id, lang)}</h1>
+        </section>
+        <Library
+          key={`${route.id}:${route.tags.join("|")}`}
+          catalog={catalog}
+          counts={counts}
+          streamers={streamerMap}
+          triggers={triggerMap}
+          lang={lang}
+          presetTags={route.tags}
+          onOpen={openClip}
+          onOpenCreator={openCreator}
+        />
+      </div>,
+    );
+  } else if (route.kind === "other") {
+    page = (
       <div class="placeholder">
         <LogoMark />
         <h1>ASMRHoney Theater</h1>
         <p>{t.emptyOther}</p>
-        <button class="gold-btn" type="button" onClick={openLatest} disabled={!catalog[0]}>
-          {t.openLatest}
+        <button class="gold-btn" type="button" onClick={openHome}>
+          {t.library}
         </button>
       </div>
     );
-  }
-
-  if ((loading && !clip) || error || !clip) {
-    return (
-      <div class="placeholder">
-        <LogoMark />
-        <h1>{error ? t.failed : t.loading}</h1>
-        {error && route.kind === "clip" && (
-          <button class="gold-btn" type="button" onClick={() => openClip(route.slug, true)}>
-            {t.retry}
-          </button>
-        )}
-      </div>
+  } else {
+    page = browseChrome(
+      "home",
+      <Home
+        catalog={catalog}
+        counts={counts}
+        streamers={streamerMap}
+        triggers={triggerMap}
+        lang={lang}
+        onOpen={openClip}
+        onOpenCreator={openCreator}
+        onCategory={openCategory}
+      />,
     );
   }
 
   return (
-    <Player
-      clip={clip}
-      catalog={catalog}
-      streamers={streamerMap}
-      triggers={triggerMap}
-      counts={counts}
-      lang={lang}
-      onOpen={(slug) => openClip(slug)}
-    />
+    <>
+      {page}
+      {searchOpen && (
+        <SearchOverlay
+          catalog={catalog}
+          people={streamers}
+          streamers={streamerMap}
+          triggers={triggerMap}
+          lang={lang}
+          initialQuery={route.kind === "home" ? route.q || "" : ""}
+          onClose={closeSearch}
+          onOpenClip={openClip}
+          onOpenCreator={(slug) => go({ kind: "creator", slug })}
+        />
+      )}
+    </>
   );
 }

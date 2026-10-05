@@ -44,8 +44,8 @@ export type Creator = {
   name?: string;
   displayName?: string;
   aliases?: string[];
-  language?: string;
-  specialty?: string;
+  language?: string | string[];
+  specialty?: string | string[];
   bio?: string;
   active?: boolean;
   region?: string;

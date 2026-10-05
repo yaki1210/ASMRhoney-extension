@@ -7,33 +7,32 @@ type Props = {
   clips: ClipListItem[];
   currentSlug?: string;
   counts: Record<string, number>;
-  commentCounts?: Record<string, number>;
   streamers: Map<string, Creator>;
   lang: Lang;
   onOpen: (slug: string) => void;
-  onOpenCreator?: (slug: string) => void;
+  onOpenCreator: (slug: string) => void;
 };
 
-export function ClipList({ clips, currentSlug, counts, commentCounts, streamers, lang, onOpen, onOpenCreator }: Props) {
+export function ClipGrid({ clips, currentSlug, counts, streamers, lang, onOpen, onOpenCreator }: Props) {
   const t = copy(lang);
   return (
-    <div class="rail-list">
+    <div class="clip-grid">
       {clips.map((item) => {
         const views = counts[item.slug] ?? item.playCount ?? 0;
-        const cc = commentCounts?.[item.slug];
+        const src = coverSrc(item);
         return (
           <article
             key={item.slug}
-            class={`rail-card ${item.slug === currentSlug ? "is-on" : ""}`}
+            class={`clip-card ${item.slug === currentSlug ? "is-on" : ""}`}
             onClick={() => onOpen(item.slug)}
           >
-            <span class="thumb">
-              {coverSrc(item) && <img src={coverSrc(item)} alt="" loading="lazy" />}
+            <span class="clip-thumb">
+              {src ? <img src={src} alt="" loading="lazy" /> : null}
               <em>{formatDuration(item.duration)}</em>
             </span>
-            <span class="rail-copy">
+            <span class="clip-copy">
               <b>{displayTitle(item, lang)}</b>
-              {onOpenCreator ? (
+              <span class="clip-meta">
                 <button
                   class="clip-creator"
                   type="button"
@@ -44,18 +43,13 @@ export function ClipList({ clips, currentSlug, counts, commentCounts, streamers,
                 >
                   {displayCreator(item.creator, streamers)}
                 </button>
-              ) : (
-                <i>{displayCreator(item.creator, streamers)}</i>
-              )}
-              <i class="rail-stats">
                 {views > 0 && (
                   <span class="view-count" title={t.views}>
                     <IconViews />
                     {formatCount(views)}
                   </span>
                 )}
-                {cc != null ? `${views > 0 ? " · " : ""}${cc} ${t.comments}` : ""}
-              </i>
+              </span>
             </span>
           </article>
         );

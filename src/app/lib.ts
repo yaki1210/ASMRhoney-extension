@@ -67,6 +67,14 @@ export function coverSrc(clip: ClipListItem) {
   return clip.coverAvifUrl || clip.coverWebpUrl || clip.coverUrl || "";
 }
 
+export function creatorCover(creator: Creator) {
+  return creator.coverUrl || creator.avatarUrl || "";
+}
+
+export function fill(template: string, n: number) {
+  return template.replace("{n}", String(n));
+}
+
 export function relatedClips(current: ClipListItem, catalog: ClipListItem[]) {
   const others = catalog.filter((c) => c.slug !== current.slug);
   const tags = new Set((current.tags || []).filter((t) => t !== "sfw" && t !== "nsfw"));

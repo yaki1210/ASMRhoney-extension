@@ -11,6 +11,7 @@ export default defineConfig({
       "/data": { target: "https://asmrhoney.com", changeOrigin: true },
       "/api": { target: "https://asmrhoney.com", changeOrigin: true },
       "/download": { target: "https://asmrhoney.com", changeOrigin: true },
+      "/icons": { target: "https://asmrhoney.com", changeOrigin: true },
     },
   },
   preview: {

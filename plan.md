@@ -1,0 +1,243 @@
+# ASMRHoney Theater — 后续计划
+
+Chrome/Edge MV3 扩展：访问 `asmrhoney.com` 时整页接管，用原站 JSON / CDN，自绘沉浸播放台。广告、Fluid Player、popunder 一律不加载。
+
+当前版本 **v0.3.0**。本地预览：`npm run dev` → `http://localhost:5173/`。
+
+下一期（v0.4）还在讨论：先改信息架构、本机历史、播放页相关列表和日期，**不实施账号、不同步云端、不发评论**。下面「三、v0.4」是已拍板的方向，动手前仍以这份为准。
+
+---
+
+## 已定方向
+
+- 接管方式：content script 盖住原站 DOM，URL 仍是站点真实路径。
+- 播放页：播放器居中；评论 / 相关 / 创作者走右侧层叠抽屉。
+- 浏览页（v0.4）：左侧栏导航（首页 / 片库 / 创作者 / 历史），顶栏只留品牌和搜索。
+- 浏览器：先 Chrome / Edge MV3。不上架也可以，本地加载 `dist-ext/`。
+- 数据：目录、播放量、评论读取继续用原站接口。身份和观看记录只存在本机。
+- 账号 / 云同步：不做。
+- 发评论：本期只读，不写。
+
+---
+
+## 现在已经有的
+
+- 播放页 `/clip/:slug/`、`/en/clip/:slug/`：自绘控件、键盘、清晰度、倍速、循环、睡眠定时、进度记忆、后台听。
+- 右侧抽屉栈：评论（`GET /api/comments`）、相关视频、创作者作品（最新 / 播放 / 时长 / 评论排序）。
+- 顶栏评论气泡；`mj` 评论默认折叠。
+- 首页 `/`：继续观看 + 整份片库筛选网格（和独立片库页重复，v0.4 要拆）。
+- 分类 URL、创作者目录 `/creators/`、搜索叠层（⌘K / `/`，`/?q=` 打开叠层）。
+- 本机进度 `ahx.progress.{slug}`（`t` / `dur` / `updatedAt`）；少于 5 秒或超过 95% 不出现在继续观看。
+- Vite 开发代理、`manifest.json` + `rules.json` + `src/content/inject.ts` 骨架。
+- `/audio/` 仍是占位。扩展尚未在真实站点验证。
+
+---
+
+## 一、插件化
+
+目标：`npm run build:ext` 产出可在 `chrome://extensions` 「加载已解压的扩展程序」的目录，打开 `https://asmrhoney.com/clip/...` 就是 Theater。
+
+### 构建
+
+- `vite.extension.config.ts` 把 `src/content/inject.ts` 打成 IIFE `dist-ext/content.js`，CSS 抽成 `dist-ext/content.css`。
+- `closeBundle` 已复制 `manifest.json`、`rules.json`。要核对：
+  - IIFE 里 Preact + 样式都被打进去，页面不依赖 `chrome-extension://` 的 ES module（MAIN world 没有 `chrome.runtime`）。
+  - `content.css` 文件名和 manifest 的 `"css": ["content.css"]` 一致。
+
+### 接管时序（上站时必须成立）
+
+1. `run_at: document_start` + MAIN world：立刻给 `html` 加遮罩，避免原站闪一下。
+2. `declarativeNetRequest` 拦住 `app.js`、原站 CSS、Fluid Player、广告脚本、popunder、`/ad-frames/*`。
+3. 读 `window.__ASMR_INITIAL_CLIP_DATA__` 做首屏，没有再 fetch `/data/clips/{slug}.json`。
+4. 挂 `#ahx-root`，原 DOM 全部藏住。
+
+漏拦任何一条原站 JS，两套播放器会抢 `<video>`。第 0 次真机加载就要在 Network 里确认 `app.js` / fluidplayer / magsrv 是 blocked。
+
+### 存储
+
+开发预览和上站后都用页面源的 `localStorage`（MAIN world 就是 `asmrhoney.com`）。v0.4 历史也走同一套 `ahx.progress.*`，不加 `chrome.storage`、不做跨设备。
+
+### 验收
+
+1. 未加载扩展：原站照常。
+2. 加载 `dist-ext/` 后打开任意 `/clip/{slug}/`：无原 topbar、无广告、无 Fluid 皮肤。
+3. 播放、切相关、评论抽屉、刷新续播都可用。
+4. 打开 `/`、`/creators/`：Theater 浏览页，DNR 仍然拦原站 JS。
+
+---
+
+## 二、当前路由（v0.3）
+
+| 原站路径 | 现在的行为 | v0.4 |
+|---|---|---|
+| `/clip/:slug/`、`/en/clip/:slug/` | 沉浸播放台；无片库按钮；相关竖卡；点标签进片库 | meta 露出日期 |
+| `/`、`/en/` | 首页嵌整份 Library | 侧栏 + 继续观看/历史条 + 筛选网格 |
+| `/?q=` | 打开搜索叠层 | 进入独立搜索页，可再筛选 |
+| `/creators/` | 创作者目录 | 侧栏入口，页本身保留 |
+| `/creators/:slug/` | 创作者作品页 | 保留 |
+| `/asmr/` 等分类 | 片库页 + 预设过滤 | 侧栏「片库」落地，分类 URL 仍挂这里 |
+| `/history/`（新） | 无 | 本机观看历史 |
+| `/audio/`、`/download/:slug/` | 占位 / 跳原站 | 更后一期 |
+
+---
+
+## 三、v0.4 讨论结论（尚未实施）
+
+### 1. 发评论：只显示
+
+播放页已经能读评论、分页、时间戳跳转、折叠 `mj`、顶栏计数。缺的是发表。
+
+原站没有账号。评论 `GET /api/comments` 只有 `id / nickname / body / created_at`。`app.js` 里找不到发评 POST；`POST /api/event` 是 D1 分析，不能当评论接口。本期也不做账号。
+
+自建一套发表会和原站评论分裂成两份；去猜一个没有文档的 POST 容易写坏。**v0.4 保持只读。** 以后若摸清原站 POST（昵称表单 + CSRF），再单独开一期，仍然不绑我们自己的登录。
+
+### 2. 播放页去掉「片库」按钮（已做）
+
+播放页顶栏只留：品牌、搜索、评论气泡、相关。`LibraryOverlay` 已删。
+
+点视频下方标签：有对应分类的进该分类 URL（如 `nsfw` → `/adult-asmr/`），其余进 `/asmr/?tag={slug}` 并预选该芯片。离开播放器；mini player 仍是更后一期。
+
+### 3. 相关列表缩略图加大（已做）
+
+相关列表改成首页同款竖卡。桌面右侧栏 312px（封面约 280px）、一列大图；≤1099px 相关区两列。创作者抽屉仍用紧凑横条。卡片日期仍待做。
+
+### 4. 左侧栏，拆开首页和片库
+
+现在的问题：`Home` 直接嵌了整份 `Library`，顶栏又有「片库」「创作者」，且首页时「片库」按钮也是选中态。三处在做同一件事。
+
+YouTube 式浏览壳：
+
+```
+[ 侧栏 ]     [ 顶栏：品牌 · 搜索框 ]
+  首页
+  片库
+  创作者
+  历史
+             [ 当前页 ]
+```
+
+- **侧栏**承担「片库 / 创作者 / 历史」入口。播放页不要侧栏，保持剧场。
+- **顶栏**浏览页不再放这两个文字按钮。
+- **首页 `/`**：本机「继续观看」（可扩成横向最近几条）+ 筛选 + 最新网格。查找发生在首页的筛选和顶栏搜索。
+- **片库**：分类着陆（现有 `/asmr/`、`/sensual-asmr/` 等）+ 完整标签组。给想按类翻的人，不再从首页顶栏重复进入同一个网格。
+- **创作者**：现有 `/creators/`。
+- **历史**：见第 6 节。
+
+首页和片库筛选可以共用 `Library` 的芯片逻辑，壳和入口分开。分类 chip（感官 / 舔耳 / 成人 / 口音）放侧栏片库或首页快捷都行，实施时不要在顶栏再放一套。
+
+窄屏：侧栏收成图标或顶栏汉堡，避免再占一条固定宽。
+
+### 5. 搜索变成独立页面
+
+现在的命令面板把「建议」和「结果」混在一起，能力已经超过一块 overlay 该承担的。
+
+- 顶栏搜索框、⌘K、`/` 仍弹出建议层：最近搜索、创作者捷径、边打边出的前几条。
+- **输入关键词后按 Enter**（或点「搜索 xxx」）进入搜索页。URL 继续用原站习惯 `/?q=`，或改成更干净的 `/search/?q=`（实施时二选一，默认倾向 `/search/?q=`，避免和首页抢 query）。
+- 搜索页 = 结果网格 + 与片库同一套筛选（关键词 AND 标签）。排序沿用最新 / 播放 / 时长。
+- 建议层里点某条视频仍可直达播放页。
+
+### 6. 只做本机历史
+
+沿用 `ahx.progress.{slug}`，整理成可浏览的列表，不新开后端。
+
+```
+WatchRecord { slug, t, dur, updatedAt }
+```
+
+- 侧栏「历史」：按 `updatedAt` 倒序；未看完 / 已看完可分。看完阈值继续用 ≥95%。
+- 首页「继续观看」读同一份数据。
+- 进度仍由播放器定时写入。
+- 不做收藏、账号、云同步、`chrome.storage.sync`。
+- `localhost:5173` 和 `asmrhoney.com` 仍是两份本地数据，可接受。
+
+### 7. 标签标记不全
+
+这是原站数据问题，筛选芯片本身已经列出 `triggers.json` 全部 36 个 slug。对过 `clips-search.json`（2718 条）：
+
+- 片子用到的 distinct 标签 31 个，没有芯片之外的私货 slug。
+- 5 个芯片当前 0 条：`brushing` `paper` `keyboard` `rain` `fire`。
+- 近义重复：`kiss` / `kissing`（26 vs 3），`vision` / `visual_triggers`（88 vs 2）。
+- 231 条只有 1 个标签（常见只有 `nsfw`），标题里明显还有舔耳、角色等。
+- 88 条既没有 `sfw` 也没有 `nsfw`。
+- `sfw`∩`nsfw` 同时打上的有 553 条，分级并不互斥。
+
+v0.4 能做的：
+
+- 芯片按当前目录命中数隐藏 0 条，避免空筛。
+- 近义 slug 在筛选里当一组（勾选亲吻同时匹配 `kiss` 与 `kissing`）。
+- 搜索继续打标题 / 别名，用来补标签缺口。
+- 卡片和播放页把已有标签、日期露出来（播放页标签已有）。
+
+不在客户端猜标，不写回原站。
+
+### 8. 露出上传日期
+
+`publishedAt` 早就在列表和详情里，现在只拿来排序。卡片和播放页 meta 都没有日期。
+
+- 播放页创作者 / 播放量旁边显示具体日期（`2026-10-02` 这种，不要只用「n 小时前」）。
+- 首页 / 片库 / 搜索 / 相关 / 历史卡片加一行短日期。
+- 评论时间继续用相对时间 `formatWhen`。给视频另写一个 `formatDate(publishedAt)`。
+
+---
+
+## 四、更后一期（v0.4 之后）
+
+- **插件真机**：`build:ext`、DNR 实测、遮罩无闪。
+- **mini player**：离开 clip 路径时声音不断。
+- **字幕**：`subtitleTracks` 接到 `<track>` / overlay。
+- **音频**：`/data/audio.json`。
+- **下载抽屉**：原片 / 480p 直链。
+- **i18n 切换**：顶栏切语言。
+- **发评论**：仅当原站 POST 摸清之后。
+- **收藏 / 账号同步**：明确不做，除非以后单独拍板。
+
+---
+
+## 原站接口（只读）
+
+**目录**
+
+- `GET /data/clips-meta.json`
+- `GET /data/clips-page-{n}.json`
+- `GET /data/clips-search.json` — 全量列表
+- `GET /data/clips/{slug}.json` — 含 `videoUrl` / `video480Url` / `backgroundAudioUrl` / `subtitleTracks` / `publishedAt` / `tags`
+- `GET /data/streamers.json`
+- `GET /data/triggers.json` — 36 个官方标签
+- `GET /data/audio.json`
+
+**动态**
+
+- `GET /api/play-counts`
+- `GET /api/comments?clip={slug}&before={id}` — 只读
+- `POST /api/event` — 埋点；`clip_play_start` 会回写播放量
+- `GET /download/{slug}/`
+- `GET /api/ad-config` — 接管后不请求
+
+没有登录、没有 `/api/me`、没有观看历史接口、没有已文档化的发评 POST。列表项没有 `videoUrl`，开播必须拉详情。
+
+---
+
+## 建议实施顺序（v0.4）
+
+1. 播放页删除片库按钮；相关列表改大卡。（已做）
+2. 播放页和卡片露出 `publishedAt`。
+3. 本机历史页 + 浏览壳左侧栏（首页 / 片库 / 创作者 / 历史）；顶栏去掉片库、创作者。
+4. 首页与片库拆开：首页承担筛选查找，片库承担分类 URL。
+5. 搜索建议层 + Enter 进搜索页，结果可再筛选。
+6. 标签：藏空芯片、近义合并。
+7. 插件真机、mini player、字幕、音频……回到「更后一期」。
+
+每一项做完用 `git tag` 记一版。
+
+---
+
+## 不做
+
+- 改 CDN / 转 HLS / 自适应码率（源站只有 mp4 + 480p）。
+- 重做广告变现。
+- 用扩展去补丁原站 DOM（始终是替换）。
+- Firefox、上架商店：需单独拍板。
+- 账号系统、云同步、把进度 POST 到 `/api/event`。
+- v0.4 发评论、自建评论后端。
+- 猜测或改写原站片子标签。
+- 收藏（未列入本期）。

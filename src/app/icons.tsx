@@ -35,6 +35,14 @@ export const IconDownload = (p: P) => svg("M12 4v11m0 0l-4-4m4 4l4-4M5 19h14", p
 export const IconHeadphone = (p: P) => svg("M5 13v-2a7 7 0 0114 0v2M5 13a2 2 0 104 0v3a2 2 0 10-4 0v-3zm10 0a2 2 0 104 0v3a2 2 0 10-4 0v-3z", p);
 export const IconClose = (p: P) => svg("M6 6l12 12M18 6L6 18", p);
 export const IconComment = (p: P) => svg("M5 6h14v9H8.5L5 18.5V6z", p);
+export const IconGrid = (p: P) => svg("M5 5h6v6H5V5zm8 0h6v6h-6V5zM5 13h6v6H5v-6zm8 0h6v6h-6v-6z", p);
+export const IconUsers = (p: P) =>
+  svg("M8 11a3.2 3.2 0 100-6.4A3.2 3.2 0 008 11zm8.2-1.2a2.6 2.6 0 10-2.2-2.6M3.8 19v-1.4A3.6 3.6 0 017.4 14h1.2A3.6 3.6 0 0112.2 17.6V19m4.2-5h.8a3.2 3.2 0 013.2 3.2V19", p);
+export const IconViews = (p: P) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...p}>
+    <path d="M8 6.2v11.6L18.5 12 8 6.2z" />
+  </svg>
+);
 
 export function LogoMark() {
   return (
