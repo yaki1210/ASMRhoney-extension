@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
+import { ClipGrid } from "../browse/ClipGrid";
 import { ensureFullCatalog, fetchCommentCount } from "../data/client";
 import type { ClipListItem, Creator, CreatorSort, Lang } from "../data/types";
 import { copy } from "../i18n";
 import { displayCreator } from "../lib";
 import { ClipList } from "./ClipList";
+
+const PAGE = 48;
 
 type Props = {
   slug: string;
@@ -13,14 +16,31 @@ type Props = {
   streamers: Map<string, Creator>;
   lang: Lang;
   onOpen: (slug: string) => void;
+  onOpenCreator?: (slug: string) => void;
+  layout?: "list" | "grid";
 };
 
-export function CreatorPanel({ slug, catalog, currentSlug, counts, streamers, lang, onOpen }: Props) {
+export function CreatorPanel({
+  slug,
+  catalog,
+  currentSlug,
+  counts,
+  streamers,
+  lang,
+  onOpen,
+  onOpenCreator,
+  layout = "list",
+}: Props) {
   const t = copy(lang);
   const [all, setAll] = useState<ClipListItem[]>(() => catalog.filter((c) => c.creator === slug));
   const [sort, setSort] = useState<CreatorSort>("new");
+  const [shown, setShown] = useState(PAGE);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [loadingCounts, setLoadingCounts] = useState(false);
+
+  useEffect(() => {
+    setShown(PAGE);
+  }, [slug]);
 
   useEffect(() => {
     setAll(catalog.filter((c) => c.creator === slug));
@@ -75,18 +95,37 @@ export function CreatorPanel({ slug, catalog, currentSlug, counts, streamers, la
         ))}
       </div>
       {loadingCounts && sort === "comments" ? <p class="rail-empty">{t.loading}</p> : null}
-      <ClipList
-        clips={clips}
-        currentSlug={currentSlug}
-        counts={counts}
-        commentCounts={sort === "comments" ? commentCounts : undefined}
-        streamers={streamers}
-        lang={lang}
-        onOpen={onOpen}
-      />
+      {layout === "grid" ? (
+        <>
+          <ClipGrid
+            clips={clips.slice(0, shown)}
+            counts={counts}
+            streamers={streamers}
+            lang={lang}
+            onOpen={onOpen}
+            onOpenCreator={(creator) => onOpenCreator?.(creator)}
+          />
+          {shown < clips.length && (
+            <button class="more-btn library-more" type="button" onClick={() => setShown((n) => n + PAGE)}>
+              {t.commentsMore}
+            </button>
+          )}
+        </>
+      ) : (
+        <ClipList
+          clips={clips}
+          currentSlug={currentSlug}
+          counts={counts}
+          commentCounts={sort === "comments" ? commentCounts : undefined}
+          streamers={streamers}
+          lang={lang}
+          onOpen={onOpen}
+        />
+      )}
       <p class="rail-footnote">
         {displayCreator(slug, streamers)} {clips.length} {t.creatorWorks}
       </p>
     </>
   );
 }
+

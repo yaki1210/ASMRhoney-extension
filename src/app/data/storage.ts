@@ -87,7 +87,11 @@ export function pushRecentSearch(q: string) {
 
 export type RecentProgress = Progress & { slug: string };
 
-export function listRecentProgress(limit = 8): RecentProgress[] {
+export function isFinished(p: Pick<Progress, "t" | "dur">) {
+  return p.dur > 0 && p.t >= p.dur * 0.95;
+}
+
+export function listWatchHistory(): RecentProgress[] {
   const out: RecentProgress[] = [];
   try {
     for (let i = 0; i < localStorage.length; i++) {
@@ -103,5 +107,9 @@ export function listRecentProgress(limit = 8): RecentProgress[] {
     return [];
   }
   out.sort((a, b) => b.updatedAt - a.updatedAt);
-  return out.slice(0, limit);
+  return out;
+}
+
+export function listRecentProgress(limit = 8): RecentProgress[] {
+  return listWatchHistory().slice(0, limit);
 }

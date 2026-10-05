@@ -9,9 +9,10 @@ type Props = {
   streamers: Map<string, Creator>;
   lang: Lang;
   onOpen: (clipSlug: string) => void;
+  onOpenCreator: (slug: string) => void;
 };
 
-export function CreatorPage({ slug, catalog, counts, streamers, lang, onOpen }: Props) {
+export function CreatorPage({ slug, catalog, counts, streamers, lang, onOpen, onOpenCreator }: Props) {
   const person = streamers.get(slug);
   const src = person ? creatorCover(person) : "";
   return (
@@ -23,7 +24,16 @@ export function CreatorPage({ slug, catalog, counts, streamers, lang, onOpen }: 
           {person?.bio ? <p>{person.bio}</p> : null}
         </div>
       </header>
-      <CreatorPanel slug={slug} catalog={catalog} counts={counts} streamers={streamers} lang={lang} onOpen={onOpen} />
+      <CreatorPanel
+        slug={slug}
+        catalog={catalog}
+        counts={counts}
+        streamers={streamers}
+        lang={lang}
+        onOpen={onOpen}
+        onOpenCreator={onOpenCreator}
+        layout="grid"
+      />
     </div>
   );
 }

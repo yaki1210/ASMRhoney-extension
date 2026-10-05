@@ -2,6 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import { CreatorPage } from "./browse/CreatorPage";
 import { CreatorsPage } from "./browse/CreatorsPage";
+import { HistoryPage } from "./browse/HistoryPage";
 import { Home } from "./browse/Home";
 import { Library } from "./browse/Library";
 import {
@@ -20,6 +21,7 @@ import { displayCreator } from "./lib";
 import { LogoMark } from "./icons";
 import { SearchOverlay } from "./overlays/SearchOverlay";
 import { Player } from "./player/Player";
+import { Sidebar, type SideId } from "./shell/Sidebar";
 import { Topbar } from "./shell/Topbar";
 
 function read() {
@@ -39,6 +41,9 @@ export function App() {
   const [loading, setLoading] = useState(route.kind === "clip");
   const [error, setError] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(() => route.kind === "home" && Boolean(route.q));
+  const [navOpen, setNavOpen] = useState(false);
+  const [sideCollapsed, setSideCollapsed] = useState(false);
+  const [narrow, setNarrow] = useState(() => window.matchMedia("(max-width: 720px)").matches);
   const t = copy(lang);
   const streamerMap = useMemo(() => new Map(streamers.map((s) => [s.slug, s])), [streamers]);
   const triggerMap = useMemo(() => new Map(triggers.map((x) => [x.slug, x])), [triggers]);
@@ -58,6 +63,17 @@ export function App() {
     const onPop = () => setLoc(read());
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  useEffect(() => {
+    setNavOpen(false);
+  }, [route]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 720px)");
+    const onChange = () => setNarrow(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
   }, []);
 
   useEffect(() => {
@@ -126,7 +142,8 @@ export function App() {
     else if (route.kind === "creators") document.title = `${t.creators} · ASMRHoney`;
     else if (route.kind === "library") document.title = `${categoryTitle(route.id, lang)} · ASMRHoney`;
     else if (route.kind === "creator") document.title = `${displayCreator(route.slug, streamerMap)} · ASMRHoney`;
-  }, [route, lang, t.creators]);
+    else if (route.kind === "history") document.title = `${t.history} · ASMRHoney`;
+  }, [route, lang, t.creators, t.history]);
 
   const openClip = (slug: string) => go({ kind: "clip", slug });
   const openCreator = (slug: string) => go({ kind: "creator", slug });
@@ -142,15 +159,37 @@ export function App() {
     if (route.kind === "home" && route.q) go({ kind: "home" }, true);
   };
 
-  const browseChrome = (nav: "home" | "library" | "creators", body: ComponentChildren) => (
-    <div class="shell">
-      <Topbar
+  const sideActive = (current: Route): SideId => {
+    if (current.kind === "library") return "library";
+    if (current.kind === "creators" || current.kind === "creator") return "creators";
+    if (current.kind === "history") return "history";
+    return "home";
+  };
+
+  const toggleSide = () => {
+    if (narrow) setNavOpen((open) => !open);
+    else setSideCollapsed((collapsed) => !collapsed);
+  };
+
+  const browseChrome = (body: ComponentChildren) => (
+    <div class={`shell is-browse ${navOpen ? "is-nav" : ""} ${!narrow && sideCollapsed ? "is-collapsed" : ""}`}>
+      <Sidebar
         lang={lang}
-        nav={nav}
+        active={sideActive(route)}
         onHome={openHome}
-        onSearch={() => setSearchOpen(true)}
         onLibrary={() => openCategory("asmr")}
         onCreators={() => go({ kind: "creators" })}
+        onHistory={() => go({ kind: "history" })}
+        onNavigate={() => setNavOpen(false)}
+      />
+      <button class="side-backdrop" type="button" aria-label={t.menu} onClick={() => setNavOpen(false)} />
+      <Topbar
+        lang={lang}
+        onHome={openHome}
+        onSearch={() => setSearchOpen(true)}
+        onMenu={toggleSide}
+        menuExpanded={narrow ? navOpen : !sideCollapsed}
+        menuLabel={narrow ? t.menu : sideCollapsed ? t.navExpand : t.navCollapse}
       />
       {body}
     </div>
@@ -189,12 +228,10 @@ export function App() {
     }
   } else if (route.kind === "creators") {
     page = browseChrome(
-      "creators",
       <CreatorsPage people={streamers} catalog={catalog} lang={lang} onOpen={(slug) => go({ kind: "creator", slug })} />,
     );
   } else if (route.kind === "creator") {
     page = browseChrome(
-      "creators",
       <CreatorPage
         slug={route.slug}
         catalog={catalog}
@@ -202,16 +239,35 @@ export function App() {
         streamers={streamerMap}
         lang={lang}
         onOpen={openClip}
+        onOpenCreator={openCreator}
+      />,
+    );
+  } else if (route.kind === "history") {
+    page = browseChrome(
+      <HistoryPage
+        catalog={catalog}
+        streamers={streamerMap}
+        lang={lang}
+        onOpen={openClip}
+        onOpenCreator={openCreator}
       />,
     );
   } else if (route.kind === "library") {
     page = browseChrome(
-      "library",
       <div class="page">
-        <section class="hero-block">
-          <p class="kicker">{t.library}</p>
-          <h1 class="home-title">{categoryTitle(route.id, lang)}</h1>
-        </section>
+        <div class="cat-row">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c.id}
+              class={`tag ${c.id === route.id ? "is-on" : ""}`}
+              type="button"
+              onClick={() => openCategory(c.id)}
+            >
+              {lang === "en" ? c.titleEn : c.titleZh}
+            </button>
+          ))}
+        </div>
+        <h1 class="library-heading">{categoryTitle(route.id, lang)}</h1>
         <Library
           key={`${route.id}:${route.tags.join("|")}`}
           catalog={catalog}
@@ -238,16 +294,13 @@ export function App() {
     );
   } else {
     page = browseChrome(
-      "home",
       <Home
         catalog={catalog}
         counts={counts}
         streamers={streamerMap}
-        triggers={triggerMap}
         lang={lang}
         onOpen={openClip}
         onOpenCreator={openCreator}
-        onCategory={openCategory}
       />,
     );
   }

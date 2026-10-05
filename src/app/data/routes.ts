@@ -6,6 +6,7 @@ export type Route =
   | { kind: "creators" }
   | { kind: "creator"; slug: string }
   | { kind: "library"; id: string; tags: string[] }
+  | { kind: "history" }
   | { kind: "other" };
 
 export type Category = {
@@ -60,6 +61,8 @@ export function parseRoute(pathname = location.pathname, search = location.searc
   const clip = path.match(/^\/clip\/([^/]+)$/);
   if (clip) return { lang, route: { kind: "clip", slug: decodeURIComponent(clip[1]) } };
 
+  if (path === "/history") return { lang, route: { kind: "history" } };
+
   if (path === "/creators") return { lang, route: { kind: "creators" } };
   const creator = path.match(/^\/creators\/([^/]+)$/);
   if (creator) return { lang, route: { kind: "creator", slug: decodeURIComponent(creator[1]) } };
@@ -84,6 +87,8 @@ export function toPath(route: Route, lang: Lang) {
       return `${prefix}/clip/${encodeURIComponent(route.slug)}/`;
     case "creators":
       return `${prefix}/creators/`;
+    case "history":
+      return `${prefix}/history/`;
     case "creator":
       return `${prefix}/creators/${encodeURIComponent(route.slug)}/`;
     case "library": {

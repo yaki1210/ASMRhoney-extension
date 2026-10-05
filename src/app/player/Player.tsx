@@ -157,7 +157,7 @@ export function Player({ clip, catalog, streamers, triggers, counts, lang, onOpe
 
   return (
     <div class={`shell ${railOpen ? "is-rail" : ""}`}>
-      <Topbar lang={lang} nav="clip" onHome={onHome} onSearch={onSearch}>
+      <Topbar lang={lang} onHome={onHome} onSearch={onSearch}>
         <button
           class={`comment-bubble ${current?.type === "comments" ? "is-on" : ""}`}
           type="button"
