@@ -6,6 +6,7 @@ import { formatWhen, parseTimestamp } from "../lib";
 
 type Props = {
   comments: Comment[];
+  loading?: boolean;
   hasMore: boolean;
   loadingMore: boolean;
   lang: Lang;
@@ -47,14 +48,18 @@ function Body({ text, onSeek }: { text: string; onSeek: (s: number) => void }) {
   return <>{nodes}</>;
 }
 
-export function CommentsPanel({ comments, hasMore, loadingMore, lang, onMore, onSeek }: Props) {
+export function CommentsPanel({ comments, loading = false, hasMore, loadingMore, lang, onMore, onSeek }: Props) {
   const t = copy(lang);
   const [showMj, setShowMj] = useState(false);
   const mjComments = useMemo(() => comments.filter(isMjComment), [comments]);
   const visible = showMj ? comments : comments.filter((c) => !isMjComment(c));
   const mjCount = mjComments.length;
 
-  if (!comments.length && !loadingMore) {
+  if (!comments.length && (loading || loadingMore)) {
+    return <p class="rail-empty">{t.commentsLoading}</p>;
+  }
+
+  if (!comments.length) {
     return <p class="rail-empty">{t.commentsEmpty}</p>;
   }
 

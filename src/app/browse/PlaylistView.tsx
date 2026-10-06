@@ -3,6 +3,7 @@ import { fetchClip } from "../data/client";
 import { nextPlaylistIndex, orderPlaylist, type PlayOrder } from "../data/decide";
 import type { ClipDetail, ClipListItem, Creator, Lang, Trigger } from "../data/types";
 import { copy } from "../i18n";
+import { IconBack, IconComment } from "../icons";
 import { coverSrc, displayCreator, displayTitle, formatDuration } from "../lib";
 import { Player } from "../player/Player";
 
@@ -19,6 +20,7 @@ type Props = {
   emptyLabel: string;
   onOrder: (order: PlayOrder) => void;
   onHome: () => void;
+  onBack: () => void;
   onSearch: () => void;
   onTag: (tag: string) => void;
 };
@@ -36,6 +38,7 @@ export function PlaylistView({
   emptyLabel,
   onOrder,
   onHome,
+  onBack,
   onSearch,
   onTag,
 }: Props) {
@@ -50,6 +53,8 @@ export function PlaylistView({
   const [detail, setDetail] = useState<ClipDetail | null>(null);
   const [detailError, setDetailError] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentCount, setCommentCount] = useState(0);
   const current = queue[index];
 
   useEffect(() => {
@@ -111,6 +116,20 @@ export function PlaylistView({
 
   return (
     <div class="page playlist-page">
+      <button
+        class={`ghost play-comments ${commentsOpen ? "is-on" : ""}`}
+        type="button"
+        onClick={() => {
+          if (!started) choose(index || 0);
+          setCommentsOpen((open) => !open);
+        }}
+        title={t.comments}
+        aria-pressed={commentsOpen}
+      >
+        <IconComment />
+        <span class="play-comments-label">{t.comments}</span>
+        {commentCount > 0 && <strong>{commentCount}</strong>}
+      </button>
       <div class="playlist-head">
         <h1 class="library-heading">{title}</h1>
         <div class="sort-row" role="tablist">
@@ -124,8 +143,11 @@ export function PlaylistView({
       {!queue.length ? (
         <p class="rail-empty">{emptyLabel}</p>
       ) : (
-        <div class="playlist">
+        <div class={`playlist ${commentsOpen ? "is-comments" : ""}`}>
           <div class="playlist-stage">
+            <button class="player-back" type="button" onClick={onBack} title={t.back} aria-label={t.back} data-player-back="1">
+              <IconBack />
+            </button>
             {!started || !current ? (
               <button class="playlist-poster" type="button" onClick={() => choose(index || 0)}>
                 {coverSrc(queue[index] || queue[0]) ? <img src={coverSrc(queue[index] || queue[0])} alt="" /> : null}
@@ -156,8 +178,12 @@ export function PlaylistView({
                   if (at >= 0) choose(at);
                 }}
                 onHome={onHome}
+                onBack={onBack}
                 onSearch={onSearch}
                 onTag={onTag}
+                commentsOpen={commentsOpen}
+                onCommentsOpenChange={setCommentsOpen}
+                onCommentCount={setCommentCount}
                 onEnded={() => {
                   const next = nextPlaylistIndex(index, queue.length);
                   if (next == null) return;

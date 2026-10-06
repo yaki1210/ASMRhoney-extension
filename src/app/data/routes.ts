@@ -7,7 +7,7 @@ export type Route =
   | { kind: "clip"; slug: string }
   | { kind: "creators" }
   | { kind: "creator"; slug: string }
-  | { kind: "library"; id: string; tags: string[] }
+  | { kind: "library"; id: string; tags: string[]; region?: LibraryRegion }
   | { kind: "history" }
   | { kind: "favorites" }
   | { kind: "playlist"; order: PlayOrder }
@@ -128,7 +128,7 @@ export function parseRoute(pathname = location.pathname, search = location.searc
   const cat = CATEGORY_BY_ID.get(catId);
   if (cat) {
     const tags = [...new Set([...cat.tags, ...extraTagsFromSearch(search)])];
-    return { lang, route: { kind: "library", id: cat.id, tags } };
+    return { lang, route: { kind: "library", id: cat.id, tags, region: homeRegion(search) } };
   }
 
   if (path === "/" && q) return { lang, route: searchRoute(search, q) };
@@ -153,9 +153,12 @@ export function toPath(route: Route, lang: Lang) {
     case "library": {
       const cat = CATEGORY_BY_ID.get(route.id);
       const extras = (route.tags || []).filter((t) => !(cat?.tags || []).includes(t));
+      const params = new URLSearchParams();
+      if (route.region && route.region !== "all") params.set("region", route.region);
+      if (extras.length) params.set("tag", extras.join(","));
+      const query = params.toString();
       const base = `${prefix}/${route.id}/`;
-      if (!extras.length) return base;
-      return `${base}?tag=${extras.map(encodeURIComponent).join(",")}`;
+      return query ? `${base}?${query}` : base;
     }
     case "search": {
       const params = new URLSearchParams();

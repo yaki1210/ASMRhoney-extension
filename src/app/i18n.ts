@@ -35,6 +35,9 @@ const zh = {
   navExpand: "展开侧栏",
   resultCount: "{n} 部视频",
   creatorCount: "{n} 位创作者",
+  creatorLang: "创作者语言",
+  creatorZh: "中文",
+  creatorNonZh: "非中文",
   noResults: "这一组还没有片子",
   clearFilters: "清除筛选",
   groupRating: "分级",
@@ -69,6 +72,7 @@ const zh = {
   expand: "相关列表",
   comments: "评论",
   commentsEmpty: "还没有评论",
+  commentsLoading: "正在加载这条视频的评论",
   commentsMore: "加载更多",
   commentsMjFold: "已折叠 {n} 条评论",
   commentsMjUnfold: "收起 {n} 条评论",
@@ -101,6 +105,7 @@ const zh = {
   collectionEmpty: "这个合集里没有视频",
   collectionImages: "这是一组图片，不能连续播放",
   playlistNow: "正在播放",
+  regionLabel: "语言地区",
   regionAll: "全部",
   regionZh: "中文区",
   regionJpKr: "日韩区",
@@ -113,6 +118,11 @@ const zh = {
   audioAlbums: "专辑",
   audioLoose: "单曲音频",
   audioSearch: "搜索创作者、专辑或音轨",
+  audioTracks: "曲目",
+  audioTrackCount: "{n} 轨",
+  audioPrev: "上一首",
+  audioNext: "下一首",
+  sleepMinutes: "{n} 分钟",
   galleryHint: "点击图片放大",
 };
 
@@ -151,6 +161,9 @@ const en: typeof zh = {
   navExpand: "Expand sidebar",
   resultCount: "{n} videos",
   creatorCount: "{n} creators",
+  creatorLang: "Creator language",
+  creatorZh: "Chinese",
+  creatorNonZh: "Non-Chinese",
   noResults: "Nothing in this filter",
   clearFilters: "Clear filters",
   groupRating: "Rating",
@@ -185,6 +198,7 @@ const en: typeof zh = {
   expand: "Related",
   comments: "Comments",
   commentsEmpty: "No comments yet",
+  commentsLoading: "Loading comments for this video",
   commentsMore: "Load more",
   commentsMjFold: "{n} comments folded",
   commentsMjUnfold: "Hide {n} comments",
@@ -217,6 +231,7 @@ const en: typeof zh = {
   collectionEmpty: "This collection has no videos",
   collectionImages: "This is a photo set and cannot play as a queue",
   playlistNow: "Now playing",
+  regionLabel: "Region",
   regionAll: "All",
   regionZh: "Chinese",
   regionJpKr: "Japan · Korea",
@@ -229,9 +244,15 @@ const en: typeof zh = {
   audioAlbums: "Albums",
   audioLoose: "Loose tracks",
   audioSearch: "Search creators, albums, or tracks",
+  audioTracks: "Tracks",
+  audioTrackCount: "{n} tracks",
+  audioPrev: "Previous",
+  audioNext: "Next",
+  sleepMinutes: "{n} min",
   galleryHint: "Click a photo to enlarge",
 };
 
 export function copy(lang: Lang) {
   return lang === "en" ? en : zh;
 }
+

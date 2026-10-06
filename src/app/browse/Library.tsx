@@ -1,5 +1,6 @@
 import { useMemo, useState } from "preact/hooks";
-import { clipMatchesTags, isPublicClip, sortClips, TAG_GROUPS, type TagGroupId } from "../data/filters";
+import { libraryClipVisible, type LibraryRegion } from "../data/decide";
+import { sortClips, TAG_GROUPS, type TagGroupId } from "../data/filters";
 import type { ClipListItem, Creator, CreatorSort, Lang, Trigger } from "../data/types";
 import { copy } from "../i18n";
 import { fill, triggerLabel } from "../lib";
@@ -19,22 +20,33 @@ type Props = {
   streamers: Map<string, Creator>;
   triggers: Map<string, Trigger>;
   lang: Lang;
+  region: LibraryRegion;
   presetTags?: string[];
   currentSlug?: string;
   onOpen: (slug: string) => void;
   onOpenCreator: (slug: string) => void;
 };
 
-export function Library({ catalog, counts, streamers, triggers, lang, presetTags = [], currentSlug, onOpen, onOpenCreator }: Props) {
+export function Library({
+  catalog,
+  counts,
+  streamers,
+  triggers,
+  lang,
+  region,
+  presetTags = [],
+  currentSlug,
+  onOpen,
+  onOpenCreator,
+}: Props) {
   const t = copy(lang);
   const [selected, setSelected] = useState<string[]>(presetTags);
   const [sort, setSort] = useState<CreatorSort>("new");
   const [shown, setShown] = useState(PAGE);
-
   const filtered = useMemo(() => {
-    const matched = catalog.filter((c) => isPublicClip(c) && clipMatchesTags(c, selected));
+    const matched = catalog.filter((clip) => libraryClipVisible(clip, streamers, region, selected));
     return sortClips(matched, sort, counts);
-  }, [catalog, selected, sort, counts]);
+  }, [catalog, selected, sort, counts, streamers, region]);
 
   const visible = filtered.slice(0, shown);
   const sorts: { id: CreatorSort; label: string }[] = [
@@ -82,7 +94,9 @@ export function Library({ catalog, counts, streamers, triggers, lang, presetTags
           </button>
         )}
       </div>
-      {visible.length ? (
+      {!catalog.length ? (
+        <p class="rail-empty">{t.loading}</p>
+      ) : visible.length ? (
         <ClipGrid
           clips={visible}
           currentSlug={currentSlug}

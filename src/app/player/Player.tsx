@@ -50,6 +50,10 @@ type Props = {
   embed?: boolean;
   autoplay?: boolean;
   onEnded?: () => void;
+  onBack?: () => void;
+  commentsOpen?: boolean;
+  onCommentsOpenChange?: (open: boolean) => void;
+  onCommentCount?: (count: number) => void;
 };
 
 function coarsePointer() {
@@ -76,6 +80,10 @@ export function Player({
   embed = false,
   autoplay = false,
   onEnded,
+  onBack,
+  commentsOpen = false,
+  onCommentsOpenChange,
+  onCommentCount,
 }: Props) {
   const t = copy(lang);
   const p = usePlayer(clip, { autoplay, onEnded });
@@ -83,6 +91,7 @@ export function Player({
   const [dragging, setDragging] = useState(false);
   const [stack, setStack] = useState<DrawerLayer[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [commentsLoaded, setCommentsLoaded] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
   const [commentCursor, setCommentCursor] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -96,6 +105,10 @@ export function Player({
   const sleepLeft = p.sleepUntil ? Math.max(0, Math.ceil((p.sleepUntil - Date.now()) / 1000)) : 0;
   const current = stack[stack.length - 1];
   const railOpen = stack.length > 0;
+  const onCommentsOpenChangeRef = useRef(onCommentsOpenChange);
+  const onCommentCountRef = useRef(onCommentCount);
+  onCommentsOpenChangeRef.current = onCommentsOpenChange;
+  onCommentCountRef.current = onCommentCount;
 
   const push = useCallback((layer: DrawerLayer) => {
     setStack((s) => {
@@ -106,8 +119,25 @@ export function Player({
   }, []);
 
   const back = useCallback(() => {
-    setStack((s) => s.slice(0, -1));
+    setStack((s) => {
+      if (s[s.length - 1]?.type === "comments") onCommentsOpenChangeRef.current?.(false);
+      return s.slice(0, -1);
+    });
   }, []);
+
+  useEffect(() => {
+    onCommentCountRef.current?.(commentCount);
+  }, [commentCount]);
+
+  useEffect(() => {
+    if (!embed) return;
+    setStack((layers) => {
+      const hasComments = layers.some((layer) => layer.type === "comments");
+      if (commentsOpen && !hasComments) return [...layers, { type: "comments" }];
+      if (!commentsOpen && hasComments) return layers.filter((layer) => layer.type !== "comments");
+      return layers;
+    });
+  }, [commentsOpen, embed]);
 
   useEffect(() => {
     if (embed) return;
@@ -120,6 +150,7 @@ export function Player({
 
   useEffect(() => {
     let cancelled = false;
+    setCommentsLoaded(false);
     setComments([]);
     setCommentCursor(null);
     void fetchComments(clip.slug)
@@ -128,9 +159,13 @@ export function Player({
         setComments(page.comments);
         setCommentCount(page.count);
         setCommentCursor(page.has_more ? page.next_before : null);
+        setCommentsLoaded(true);
       })
       .catch(() => {
-        if (!cancelled) setCommentCount(0);
+        if (cancelled) return;
+        setComments([]);
+        setCommentCount(0);
+        setCommentsLoaded(true);
       });
     return () => {
       cancelled = true;
@@ -180,13 +215,13 @@ export function Player({
 
   const drawerTitle =
     current?.type === "comments"
-      ? `${t.comments}${commentCount ? ` · ${commentCount}` : ""}`
+      ? `${t.comments}${commentCount ? ` · ${commentCount}` : ""} · ${title}`
       : current?.type === "creator"
         ? displayCreator(current.slug, streamers)
         : t.related;
 
   return (
-    <div class={`shell ${embed ? "is-embed" : ""} ${!embed && railOpen ? "is-rail" : ""}`}>
+    <div class={`shell ${embed ? "is-embed" : ""} ${current?.type === "comments" ? "is-comments" : ""} ${!embed && railOpen ? "is-rail" : ""}`}>
       <Topbar lang={lang} onHome={onHome} onSearch={onSearch}>
         <button
           class={`comment-bubble ${current?.type === "comments" ? "is-on" : ""}`}
@@ -218,6 +253,17 @@ export function Player({
               p.nudgeUi();
             }}
           >
+            {!embed && (
+              <button
+                class="player-back"
+                type="button"
+                onClick={() => (onBack ? onBack() : history.length > 1 ? history.back() : onHome())}
+                title={t.back}
+                aria-label={t.back}
+              >
+                <IconBack />
+              </button>
+            )}
             <video
               ref={p.videoRef}
               class="video"
@@ -437,6 +483,7 @@ export function Player({
             <CommentsPanel
               key={clip.slug}
               comments={comments}
+              loading={!commentsLoaded}
               hasMore={commentCursor != null}
               loadingMore={loadingMore}
               lang={lang}

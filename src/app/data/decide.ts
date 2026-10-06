@@ -1,4 +1,4 @@
-import { narrowClips, sortClips, type DurFilter, type SearchSort, type WhenFilter } from "./filters";
+import { clipMatchesTags, isPublicClip, narrowClips, sortClips, type DurFilter, type SearchSort, type WhenFilter } from "./filters";
 import { searchClips } from "./search";
 import type { ClipListItem, Creator, Lang, Trigger } from "./types";
 
@@ -152,6 +152,13 @@ export function galleryUrls(head: ClipListItem): string[] {
   return urls;
 }
 
+export type CreatorLang = "all" | "zh" | "non-zh";
+
+/** Original creator directory: only creatorGroup "zh" is 中文. Missing group counts as 非中文. */
+export function creatorDirectoryGroup(streamer: Creator | undefined | null): Exclude<CreatorLang, "all"> {
+  return streamer?.creatorGroup === "zh" ? "zh" : "non-zh";
+}
+
 export type LibraryRegion = "all" | "zh" | "jp-kr" | "western";
 
 export function creatorRegion(streamer: Creator | undefined | null): Exclude<LibraryRegion, "all"> {
@@ -164,9 +171,27 @@ export function creatorRegion(streamer: Creator | undefined | null): Exclude<Lib
   return "western";
 }
 
+function languageRegion(language: string | undefined): Exclude<LibraryRegion, "all"> | null {
+  if (language === "zh") return "zh";
+  if (language === "ja" || language === "ko") return "jp-kr";
+  if (language === "en") return "western";
+  return null;
+}
+
 export function clipInRegion(clip: ClipListItem, streamers: Map<string, Creator>, region: LibraryRegion) {
   if (region === "all") return true;
-  return creatorRegion(streamers.get(clip.creator)) === region;
+  const person = streamers.get(clip.creator);
+  if (person) return creatorRegion(person) === region;
+  return languageRegion(clip.language) === region;
+}
+
+export function libraryClipVisible(
+  clip: ClipListItem,
+  streamers: Map<string, Creator>,
+  region: LibraryRegion,
+  tags: string[],
+) {
+  return isPublicClip(clip) && clipInRegion(clip, streamers, region) && clipMatchesTags(clip, tags);
 }
 
 export function selectSearchResults(

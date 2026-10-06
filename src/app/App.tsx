@@ -89,14 +89,12 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    void Promise.all([fetchCatalog(4), fetchStreamers(), fetchTriggers(), fetchPlayCounts()]).then(
-      ([clips, people, tags, play]) => {
-        setCatalog((cur) => (cur.length > clips.length ? cur : clips));
-        setStreamers(people);
-        setTriggers(tags);
-        setCounts(play);
-      },
-    );
+    void fetchStreamers().then(setStreamers).catch(() => setStreamers([]));
+    void fetchTriggers().then(setTriggers).catch(() => setTriggers([]));
+    void fetchPlayCounts().then(setCounts);
+    void fetchCatalog(4).then((clips) => {
+      setCatalog((cur) => (cur.length > clips.length ? cur : clips));
+    });
     void ensureFullCatalog().then((full) => {
       if (full.length) {
         full.sort((a, b) => +new Date(b.publishedAt) - +new Date(a.publishedAt));
@@ -203,7 +201,8 @@ export function App() {
   const openTag = (tag: string) => go(libraryRouteForTag(tag));
   const openCategory = (id: string) => {
     const cat = CATEGORIES.find((c) => c.id === id);
-    go({ kind: "library", id, tags: cat?.tags || [] });
+    const region = route.kind === "library" ? route.region : "all";
+    go({ kind: "library", id, tags: cat?.tags || [], region });
   };
 
   const closeSearch = () => setSearchOpen(false);
@@ -223,8 +222,13 @@ export function App() {
     else setSideCollapsed((collapsed) => !collapsed);
   };
 
-  const browseChrome = (body: ComponentChildren) => (
-    <div class={`shell is-browse ${navOpen ? "is-nav" : ""} ${!narrow && sideCollapsed ? "is-collapsed" : ""}`}>
+  const goBack = () => {
+    if (history.length > 1) history.back();
+    else openHome();
+  };
+
+  const browseChrome = (body: ComponentChildren, options?: { play?: boolean }) => (
+    <div class={`shell is-browse ${options?.play ? "is-play" : ""} ${navOpen ? "is-nav" : ""} ${!narrow && sideCollapsed ? "is-collapsed" : ""}`}>
       <Sidebar
         lang={lang}
         active={sideActive(route)}
@@ -328,9 +332,11 @@ export function App() {
         emptyLabel={t.favoritesEmpty}
         onOrder={(order) => go({ kind: "playlist", order }, true)}
         onHome={openHome}
+        onBack={goBack}
         onSearch={() => setSearchOpen(true)}
         onTag={openTag}
       />,
+      { play: true },
     );
   } else if (route.kind === "search") {
     page = browseChrome(
@@ -371,10 +377,12 @@ export function App() {
           emptyLabel={t.collectionEmpty}
           onOrder={(order) => go({ kind: "collection", slug: route.slug, order }, true)}
           onHome={openHome}
+          onBack={goBack}
           onSearch={() => setSearchOpen(true)}
           onTag={openTag}
         />
       ),
+      { play: head?.collectionMedia !== "images" },
     );
   } else if (route.kind === "audio" || route.kind === "audio-album" || route.kind === "audio-creator") {
     page = browseChrome(
@@ -403,6 +411,25 @@ export function App() {
   } else if (route.kind === "library") {
     page = browseChrome(
       <div class="page">
+        <div class="cat-row" role="tablist" aria-label={t.regionLabel}>
+          {(
+            [
+              ["all", t.regionAll],
+              ["zh", t.regionZh],
+              ["jp-kr", t.regionJpKr],
+              ["western", t.regionWestern],
+            ] as const
+          ).map((item) => (
+            <button
+              key={item[0]}
+              class={`tag ${(route.region || "all") === item[0] ? "is-on" : ""}`}
+              type="button"
+              onClick={() => go({ kind: "library", id: route.id, tags: route.tags, region: item[0] }, true)}
+            >
+              {item[1]}
+            </button>
+          ))}
+        </div>
         <div class="cat-row">
           {CATEGORIES.map((c) => (
             <button
@@ -423,6 +450,7 @@ export function App() {
           streamers={streamerMap}
           triggers={triggerMap}
           lang={lang}
+          region={route.region || "all"}
           presetTags={route.tags}
           onOpen={openClip}
           onOpenCreator={openCreator}

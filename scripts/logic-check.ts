@@ -1,9 +1,11 @@
 import { albumTracks, audioGroupOf, looseTracks } from "../src/app/data/audio";
 import {
   clipInRegion,
+  libraryClipVisible,
   collectionCreator,
   collectionFromPath,
   collectionMembers,
+  creatorDirectoryGroup,
   creatorRegion,
   enterAction,
   galleryUrls,
@@ -12,6 +14,7 @@ import {
   selectSearchResults,
   videoTapAction,
 } from "../src/app/data/decide";
+import { parseRoute, toPath } from "../src/app/data/routes";
 import { searchClips } from "../src/app/data/search";
 import type { AudioTrack, ClipListItem, Creator } from "../src/app/data/types";
 import { readFileSync } from "node:fs";
@@ -138,6 +141,9 @@ eq(creatorRegion(person({ slug: "mei", language: ["ja"] })), "jp-kr", "japanese 
 eq(creatorRegion(person({ slug: "sel", language: ["ko"] })), "jp-kr", "korean creator region");
 eq(creatorRegion(person({ slug: "west", region: "western", language: ["zh"] })), "western", "explicit region wins");
 eq(creatorRegion(person({ slug: "group", creatorGroup: "zh" })), "zh", "creator group zh");
+eq(creatorDirectoryGroup(person({ slug: "wan", creatorGroup: "zh", language: ["en"] })), "zh", "directory chinese is creatorGroup zh");
+eq(creatorDirectoryGroup(person({ slug: "mei", creatorGroup: "non-zh", language: ["zh"] })), "non-zh", "directory non-zh stays non-zh even with zh language");
+eq(creatorDirectoryGroup(person({ slug: "bare", language: ["zh"], region: "zh" })), "non-zh", "missing creatorGroup counts as non-zh");
 eq(creatorRegion(undefined), "western", "missing creator is western");
 const regionMap = new Map<string, Creator>([
   ["soly", person({ slug: "soly", language: ["zh"] })],
@@ -146,6 +152,14 @@ const regionMap = new Map<string, Creator>([
 eq(clipInRegion(clips[0], regionMap, "all"), true, "all region keeps every clip");
 eq(clipInRegion(clips[0], regionMap, "zh"), true, "chinese region keeps a zh creator");
 eq(clipInRegion(clips[2], regionMap, "zh"), false, "chinese region drops a western creator");
+eq(clipInRegion(clip({ slug: "solo", title: "solo", creator: "nobody", publishedAt: "2026-01-01", language: "zh" }), new Map(), "zh"), true, "clip language zh counts before streamers load");
+eq(clipInRegion(clip({ slug: "solo-ja", title: "solo", creator: "nobody", publishedAt: "2026-01-01", language: "ja" }), new Map(), "jp-kr"), true, "clip language ja counts as jp-kr before streamers load");
+eq(clipInRegion(clip({ slug: "solo-en", title: "solo", creator: "nobody", publishedAt: "2026-01-01", language: "en" }), new Map(), "zh"), false, "english clip language is not the chinese region");
+eq(libraryClipVisible(clips[0], regionMap, "zh", ["whisper"]), true, "library keeps a regional clip that matches the tag");
+eq(libraryClipVisible(clips[0], regionMap, "jp-kr", ["whisper"]), false, "library region drops a clip before the tag filter");
+eq(libraryClipVisible(clips[0], regionMap, "zh", ["nsfw"]), false, "library tag filter still applies inside a region");
+eq(parseRoute("/asmr/", "?region=jp-kr").route, { kind: "library", id: "asmr", tags: [], region: "jp-kr" }, "library url keeps the region");
+eq(toPath({ kind: "library", id: "adult-asmr", tags: ["nsfw", "whisper"], region: "zh" }, "zh"), "/adult-asmr/?region=zh&tag=whisper", "library path keeps region and extra tags");
 eq(audioGroupOf(person({ slug: "wan", language: ["zh"] })), "zh", "chinese audio group");
 eq(audioGroupOf(person({ slug: "sel", region: "jp-kr", language: ["ko"] })), "ja", "korean audio sits with japanese");
 
@@ -166,7 +180,7 @@ eq(
 
 const root = process.cwd();
 const zh = readFileSync(path.join(root, "src/app/i18n.ts"), "utf8");
-for (const label of ["播放全部", "正序", "倒序", "随机", "中文区", "日韩区", "欧美区", "全部", "音频区", "上传时间", "播放量"]) {
+for (const label of ["播放全部", "正序", "倒序", "随机", "中文区", "日韩区", "欧美区", "全部", "非中文", "音频区", "上传时间", "播放量"]) {
   if (!zh.includes(label)) fail(`missing copy ${label}`);
   console.log(`PASS copy ${label}`);
 }
