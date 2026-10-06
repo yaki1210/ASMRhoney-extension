@@ -1,14 +1,32 @@
 {
   "manifest_version": 3,
   "name": "ASMRHoney Theater",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "沉浸式重写 asmrhoney.com 播放体验",
+  "minimum_chrome_version": "111",
   "permissions": ["declarativeNetRequest"],
   "host_permissions": [
     "https://asmrhoney.com/*",
     "https://www.asmrhoney.com/*",
-    "https://cdn.asmrhoney.com/*"
+    "https://cdn.asmrhoney.com/*",
+    "https://cdn.fluidplayer.com/*",
+    "https://*.magsrv.com/*",
+    "https://*.pemsrv.com/*",
+    "https://pagead2.googlesyndication.com/*",
+    "https://*.highperformanceformat.com/*"
   ],
+  "action": {
+    "default_title": "ASMRHoney Theater",
+    "default_icon": {
+      "16": "icons/16.png",
+      "48": "icons/48.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
   "declarative_net_request": {
     "rule_resources": [
       {

@@ -7,8 +7,12 @@ export type Menu = null | "volume" | "speed" | "quality" | "sleep" | "more";
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const SLEEP_MINUTES = [15, 30, 60];
 
-export function usePlayer(clip: ClipDetail | null) {
+export function usePlayer(clip: ClipDetail | null, options: { autoplay?: boolean; onEnded?: () => void } = {}) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const autoplayRef = useRef(Boolean(options.autoplay));
+  const onEndedRef = useRef(options.onEnded);
+  autoplayRef.current = Boolean(options.autoplay);
+  onEndedRef.current = options.onEnded;
   const hideTimer = useRef<number>(0);
   const saveTimer = useRef<number>(0);
   const sleepTimer = useRef<number>(0);
@@ -100,7 +104,7 @@ export function usePlayer(clip: ClipDetail | null) {
     setAudioOnly(false);
     setMenu(null);
     setError(null);
-    void applySrc(clip, quality, false, saved?.t ?? 0, false);
+    void applySrc(clip, quality, false, saved?.t ?? 0, autoplayRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- clip change should reset, not follow quality
   }, [clip?.slug]);
 
@@ -137,6 +141,7 @@ export function usePlayer(clip: ClipDetail | null) {
     const onEnd = () => {
       setPlaying(false);
       setShowUi(true);
+      if (!video.loop) onEndedRef.current?.();
     };
     const onErr = () => setError("play");
 

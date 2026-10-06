@@ -79,5 +79,32 @@
       "urlFilter": "||asmrhoney.com/ad-frames",
       "resourceTypes": ["sub_frame"]
     }
+  },
+  {
+    "id": 10,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||asmrhoney.com/comments.js",
+      "resourceTypes": ["script"]
+    }
+  },
+  {
+    "id": 11,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||asmrhoney.com/comments-core.js",
+      "resourceTypes": ["script"]
+    }
+  },
+  {
+    "id": 12,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||highperformanceformat.com",
+      "resourceTypes": ["script", "xmlhttprequest", "sub_frame", "image"]
+    }
   }
 ]

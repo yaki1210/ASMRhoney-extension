@@ -1,7 +1,10 @@
 import { defineConfig } from "vite";
 import preact from "@preact/preset-vite";
-import { copyFileSync, mkdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { copyFileSync, mkdirSync, readdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [
@@ -9,18 +12,24 @@ export default defineConfig({
     {
       name: "copy-extension-meta",
       closeBundle() {
-        mkdirSync("dist-ext", { recursive: true });
-        copyFileSync("manifest.json", "dist-ext/manifest.json");
-        copyFileSync("rules.json", "dist-ext/rules.json");
+        const out = resolve(root, "dist-ext");
+        const icons = resolve(out, "icons");
+        mkdirSync(icons, { recursive: true });
+        copyFileSync(resolve(root, "manifest.json"), resolve(out, "manifest.json"));
+        copyFileSync(resolve(root, "rules.json"), resolve(out, "rules.json"));
+        for (const name of readdirSync(resolve(root, "assets/ext"))) {
+          copyFileSync(resolve(root, "assets/ext", name), resolve(icons, name));
+        }
       },
     },
   ],
   build: {
-    outDir: "dist-ext",
+    outDir: resolve(root, "dist-ext"),
     emptyOutDir: true,
     cssCodeSplit: false,
+    sourcemap: false,
     lib: {
-      entry: resolve(__dirname, "src/content/inject.ts"),
+      entry: resolve(root, "src/content/inject.ts"),
       name: "AHX",
       formats: ["iife"],
       fileName: () => "content.js",
@@ -28,6 +37,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         assetFileNames: "content.css",
+        inlineDynamicImports: true,
       },
     },
   },

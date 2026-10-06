@@ -76,7 +76,7 @@ export function fill(template: string, n: number) {
 }
 
 export function relatedClips(current: ClipListItem, catalog: ClipListItem[]) {
-  const others = catalog.filter((c) => c.slug !== current.slug);
+  const others = catalog.filter((c) => c.slug !== current.slug && c.kind !== "collection" && !c.hideFromLibrary);
   const tags = new Set((current.tags || []).filter((t) => t !== "sfw" && t !== "nsfw"));
   const scored = others.map((clip) => {
     let score = 0;

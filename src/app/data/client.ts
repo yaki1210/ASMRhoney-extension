@@ -1,5 +1,5 @@
 import { toPath } from "./routes";
-import type { ClipDetail, ClipListItem, CommentsPage, Creator, Lang, Trigger } from "./types";
+import type { AudioAlbum, AudioTrack, ClipDetail, ClipListItem, CommentsPage, Creator, Lang, Trigger } from "./types";
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { cache: "no-cache", headers: { accept: "application/json" } });
@@ -102,6 +102,15 @@ export function ensureFullCatalog(): Promise<ClipListItem[]> {
       .catch(() => [] as ClipListItem[]);
   }
   return fullCatalogPromise;
+}
+
+export async function fetchAudio(): Promise<{ albums: AudioAlbum[]; tracks: AudioTrack[] }> {
+  const json = await getJson<{ albums?: AudioAlbum[]; tracks?: AudioTrack[] }>("/data/audio.json");
+  const published = (row: { status?: string }) => (row.status || "published") === "published";
+  return {
+    albums: (json.albums || []).filter(published),
+    tracks: (json.tracks || []).filter(published),
+  };
 }
 
 export function bootstrapClip(): ClipDetail | null {

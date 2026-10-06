@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fetchComments } from "../data/client";
+import { isFavorite, toggleFavorite } from "../data/storage";
 import type { ClipDetail, ClipListItem, Comment, Creator, DrawerLayer, Lang, Trigger } from "../data/types";
 import { ClipGrid } from "../browse/ClipGrid";
 import { CommentsPanel } from "../drawer/CommentsPanel";
@@ -19,6 +20,7 @@ import {
   IconComment,
   IconDownload,
   IconFull,
+  IconHeart,
   IconHeadphone,
   IconList,
   IconLoop,
@@ -31,6 +33,7 @@ import {
   IconVolume,
 } from "../icons";
 import { Topbar } from "../shell/Topbar";
+import { videoTapAction } from "../data/decide";
 import { usePlayer } from "./usePlayer";
 
 type Props = {
@@ -44,7 +47,14 @@ type Props = {
   onHome: () => void;
   onSearch: () => void;
   onTag: (tag: string) => void;
+  embed?: boolean;
+  autoplay?: boolean;
+  onEnded?: () => void;
 };
+
+function coarsePointer() {
+  return window.matchMedia("(pointer: coarse)").matches;
+}
 
 function sameLayer(a: DrawerLayer, b: DrawerLayer) {
   if (a.type !== b.type) return false;
@@ -52,9 +62,23 @@ function sameLayer(a: DrawerLayer, b: DrawerLayer) {
   return true;
 }
 
-export function Player({ clip, catalog, streamers, triggers, counts, lang, onOpen, onHome, onSearch, onTag }: Props) {
+export function Player({
+  clip,
+  catalog,
+  streamers,
+  triggers,
+  counts,
+  lang,
+  onOpen,
+  onHome,
+  onSearch,
+  onTag,
+  embed = false,
+  autoplay = false,
+  onEnded,
+}: Props) {
   const t = copy(lang);
-  const p = usePlayer(clip);
+  const p = usePlayer(clip, { autoplay, onEnded });
   const barRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [stack, setStack] = useState<DrawerLayer[]>([]);
@@ -62,6 +86,7 @@ export function Player({ clip, catalog, streamers, triggers, counts, lang, onOpe
   const [commentCount, setCommentCount] = useState(0);
   const [commentCursor, setCommentCursor] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [saved, setSaved] = useState(() => isFavorite(clip.slug));
 
   const related = useMemo(() => relatedClips(clip, catalog).slice(0, 18), [clip, catalog]);
   const title = displayTitle(clip, lang);
@@ -85,8 +110,13 @@ export function Player({ clip, catalog, streamers, triggers, counts, lang, onOpe
   }, []);
 
   useEffect(() => {
+    if (embed) return;
     document.title = `${title} · ASMRHoney`;
-  }, [title]);
+  }, [title, embed]);
+
+  useEffect(() => {
+    setSaved(isFavorite(clip.slug));
+  }, [clip.slug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,7 +186,7 @@ export function Player({ clip, catalog, streamers, triggers, counts, lang, onOpe
         : t.related;
 
   return (
-    <div class={`shell ${railOpen ? "is-rail" : ""}`}>
+    <div class={`shell ${embed ? "is-embed" : ""} ${!embed && railOpen ? "is-rail" : ""}`}>
       <Topbar lang={lang} onHome={onHome} onSearch={onSearch}>
         <button
           class={`comment-bubble ${current?.type === "comments" ? "is-on" : ""}`}
@@ -182,7 +212,11 @@ export function Player({ clip, catalog, streamers, triggers, counts, lang, onOpe
           <div
             class={`frame ${p.showUi || !p.playing ? "is-ui" : ""} ${p.playing ? "" : "is-paused"} ${p.audioOnly ? "is-audio" : ""}`}
             onMouseMove={p.nudgeUi}
-            onPointerDown={p.nudgeUi}
+            onPointerDown={(e) => {
+              const target = e.target as HTMLElement | null;
+              if (coarsePointer() && target?.tagName === "VIDEO") return;
+              p.nudgeUi();
+            }}
           >
             <video
               ref={p.videoRef}
@@ -192,7 +226,13 @@ export function Player({ clip, catalog, streamers, triggers, counts, lang, onOpe
               poster={clip.coverUrl}
               onClick={(e) => {
                 e.stopPropagation();
-                p.toggle();
+                const action = videoTapAction({
+                  coarse: coarsePointer(),
+                  playing: p.playing,
+                  controlsVisible: p.showUi,
+                });
+                if (action === "reveal") p.nudgeUi();
+                else p.toggle();
               }}
             />
             {p.audioOnly && src && <img class="audio-cover" src={src} alt="" />}
@@ -366,6 +406,15 @@ export function Player({ clip, catalog, streamers, triggers, counts, lang, onOpe
                 </span>
               )}
               {p.sleepUntil && <span class="stat gold">{formatDuration(sleepLeft)} 后暂停</span>}
+              <button
+                class={`save-btn ${saved ? "is-on" : ""}`}
+                type="button"
+                aria-pressed={saved}
+                onClick={() => setSaved(toggleFavorite(clip.slug))}
+              >
+                <IconHeart filled={saved} />
+                {saved ? t.favoriteSaved : t.favoriteSave}
+              </button>
             </div>
             <div class="tags">
               {(clip.tags || []).map((tag) => (

@@ -1,12 +1,21 @@
+import { collectionFromPath, type LibraryRegion, type PlayOrder } from "./decide";
+import type { DurFilter, SearchSort, WhenFilter } from "./filters";
 import type { Lang } from "./types";
 
 export type Route =
-  | { kind: "home"; q?: string }
+  | { kind: "home"; region?: LibraryRegion }
   | { kind: "clip"; slug: string }
   | { kind: "creators" }
   | { kind: "creator"; slug: string }
   | { kind: "library"; id: string; tags: string[] }
   | { kind: "history" }
+  | { kind: "favorites" }
+  | { kind: "playlist"; order: PlayOrder }
+  | { kind: "search"; q: string; tags: string[]; dur: DurFilter; when: WhenFilter; sort: SearchSort }
+  | { kind: "collection"; slug: string; order: PlayOrder }
+  | { kind: "audio" }
+  | { kind: "audio-album"; slug: string }
+  | { kind: "audio-creator"; slug: string }
   | { kind: "other" };
 
 export type Category = {
@@ -46,6 +55,33 @@ function extraTagsFromSearch(search: string): string[] {
   return [...new Set(raw.split(",").map((s) => s.trim()).filter(Boolean))];
 }
 
+function playOrder(search: string): PlayOrder {
+  const order = new URLSearchParams(search).get("order");
+  if (order === "desc" || order === "shuffle") return order;
+  return "asc";
+}
+
+function homeRegion(search: string): LibraryRegion {
+  const region = new URLSearchParams(search).get("region");
+  if (region === "zh" || region === "jp-kr" || region === "western") return region;
+  return "all";
+}
+
+function searchRoute(search: string, q: string): Extract<Route, { kind: "search" }> {
+  const params = new URLSearchParams(search);
+  const dur = params.get("dur");
+  const when = params.get("when");
+  const sort = params.get("sort");
+  return {
+    kind: "search",
+    q,
+    tags: extraTagsFromSearch(search),
+    dur: dur === "short" || dur === "mid" || dur === "long" || dur === "xl" ? dur : "any",
+    when: when === "7d" || when === "30d" || when === "year" ? when : "any",
+    sort: sort === "views" || sort === "duration" ? sort : "new",
+  };
+}
+
 export function libraryRouteForTag(tag: string): Extract<Route, { kind: "library" }> {
   const slug = tag.trim();
   const cat = CATEGORIES.find((c) => c.tags.includes(slug));
@@ -57,17 +93,35 @@ export function parseRoute(pathname = location.pathname, search = location.searc
   const lang = langOf(pathname);
   const path = barePath(pathname);
   const q = new URLSearchParams(search).get("q")?.trim() || "";
+  const collection = collectionFromPath(pathname);
+  if (collection) return { lang, route: { kind: "collection", slug: collection.slug, order: playOrder(search) } };
+
+  if (path === "/audio") return { lang, route: { kind: "audio" } };
+  const album = path.match(/^\/audio\/album\/([^/]+)$/);
+  if (album) return { lang, route: { kind: "audio-album", slug: decodeURIComponent(album[1]) } };
+  const audioCreator = path.match(/^\/audio\/creator\/([^/]+)$/);
+  if (audioCreator) return { lang, route: { kind: "audio-creator", slug: decodeURIComponent(audioCreator[1]) } };
+
+  if (path === "/search") return { lang, route: searchRoute(search, q) };
+
+  const legacyCreator = path.match(/^\/creator\/([^/]+)$/);
+  if (legacyCreator) {
+    const slug = decodeURIComponent(legacyCreator[1]);
+    if (new URLSearchParams(search).get("media") === "audio") return { lang, route: { kind: "audio-creator", slug } };
+    return { lang, route: { kind: "creator", slug } };
+  }
 
   const clip = path.match(/^\/clip\/([^/]+)$/);
   if (clip) return { lang, route: { kind: "clip", slug: decodeURIComponent(clip[1]) } };
 
   if (path === "/history") return { lang, route: { kind: "history" } };
+  if (path === "/favorites/play") return { lang, route: { kind: "playlist", order: playOrder(search) } };
+  if (path === "/favorites") return { lang, route: { kind: "favorites" } };
 
   if (path === "/creators") return { lang, route: { kind: "creators" } };
   const creator = path.match(/^\/creators\/([^/]+)$/);
   if (creator) return { lang, route: { kind: "creator", slug: decodeURIComponent(creator[1]) } };
 
-  if (path === "/audio" || path.startsWith("/audio/")) return { lang, route: { kind: "other" } };
   if (path.startsWith("/download/")) return { lang, route: { kind: "other" } };
 
   const catId = path.slice(1);
@@ -77,7 +131,8 @@ export function parseRoute(pathname = location.pathname, search = location.searc
     return { lang, route: { kind: "library", id: cat.id, tags } };
   }
 
-  return { lang, route: { kind: "home", q: q || undefined } };
+  if (path === "/" && q) return { lang, route: searchRoute(search, q) };
+  return { lang, route: { kind: "home", region: homeRegion(search) } };
 }
 
 export function toPath(route: Route, lang: Lang) {
@@ -89,6 +144,10 @@ export function toPath(route: Route, lang: Lang) {
       return `${prefix}/creators/`;
     case "history":
       return `${prefix}/history/`;
+    case "favorites":
+      return `${prefix}/favorites/`;
+    case "playlist":
+      return route.order === "asc" ? `${prefix}/favorites/play/` : `${prefix}/favorites/play/?order=${route.order}`;
     case "creator":
       return `${prefix}/creators/${encodeURIComponent(route.slug)}/`;
     case "library": {
@@ -98,8 +157,28 @@ export function toPath(route: Route, lang: Lang) {
       if (!extras.length) return base;
       return `${base}?tag=${extras.map(encodeURIComponent).join(",")}`;
     }
+    case "search": {
+      const params = new URLSearchParams();
+      if (route.q) params.set("q", route.q);
+      if (route.tags.length) params.set("tag", route.tags.join(","));
+      if (route.dur !== "any") params.set("dur", route.dur);
+      if (route.when !== "any") params.set("when", route.when);
+      if (route.sort !== "new") params.set("sort", route.sort);
+      const query = params.toString();
+      return `${prefix}/search/${query ? `?${query}` : ""}`;
+    }
+    case "collection": {
+      const base = `${prefix}/collection/${encodeURIComponent(route.slug)}/`;
+      return route.order === "asc" ? base : `${base}?order=${route.order}`;
+    }
+    case "audio":
+      return `${prefix}/audio/`;
+    case "audio-album":
+      return `${prefix}/audio/album/${encodeURIComponent(route.slug)}/`;
+    case "audio-creator":
+      return `${prefix}/audio/creator/${encodeURIComponent(route.slug)}/`;
     case "home":
-      return route.q ? `${prefix}/?q=${encodeURIComponent(route.q)}` : `${prefix}/`;
+      return route.region && route.region !== "all" ? `${prefix}/?region=${route.region}` : `${prefix}/`;
     default:
       return `${prefix}/`;
   }

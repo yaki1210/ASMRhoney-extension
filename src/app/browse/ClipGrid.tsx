@@ -1,6 +1,6 @@
 import type { ClipListItem, Creator, Lang } from "../data/types";
 import { copy } from "../i18n";
-import { IconViews } from "../icons";
+import { IconHeart, IconViews } from "../icons";
 import { coverSrc, displayCreator, displayTitle, formatCount, formatDuration } from "../lib";
 
 type Props = {
@@ -11,9 +11,10 @@ type Props = {
   lang: Lang;
   onOpen: (slug: string) => void;
   onOpenCreator: (slug: string) => void;
+  onRemove?: (slug: string) => void;
 };
 
-export function ClipGrid({ clips, currentSlug, counts, streamers, lang, onOpen, onOpenCreator }: Props) {
+export function ClipGrid({ clips, currentSlug, counts, streamers, lang, onOpen, onOpenCreator, onRemove }: Props) {
   const t = copy(lang);
   return (
     <div class="clip-grid">
@@ -29,6 +30,19 @@ export function ClipGrid({ clips, currentSlug, counts, streamers, lang, onOpen, 
             <span class="clip-thumb">
               {src ? <img src={src} alt="" loading="lazy" /> : null}
               <em>{formatDuration(item.duration)}</em>
+              {onRemove && (
+                <button
+                  class="clip-unsave"
+                  type="button"
+                  title={t.favoriteRemove}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(item.slug);
+                  }}
+                >
+                  <IconHeart filled />
+                </button>
+              )}
             </span>
             <span class="clip-copy">
               <b>{displayTitle(item, lang)}</b>

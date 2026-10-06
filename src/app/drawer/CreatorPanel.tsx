@@ -43,9 +43,10 @@ export function CreatorPanel({
   }, [slug]);
 
   useEffect(() => {
-    setAll(catalog.filter((c) => c.creator === slug));
+    const visible = (list: ClipListItem[]) => list.filter((clip) => clip.creator === slug && !clip.hideFromLibrary);
+    setAll(visible(catalog));
     void ensureFullCatalog().then((full) => {
-      const mine = full.filter((c) => c.creator === slug);
+      const mine = visible(full);
       if (mine.length) setAll(mine);
     });
   }, [slug, catalog]);

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { enterAction } from "../data/decide";
 import { searchClips, searchCreators } from "../data/search";
 import { loadRecentSearches, listRecentProgress, pushRecentSearch } from "../data/storage";
 import type { ClipListItem, Creator, Lang, Trigger } from "../data/types";
@@ -16,6 +17,7 @@ type Props = {
   onClose: () => void;
   onOpenClip: (slug: string) => void;
   onOpenCreator: (slug: string) => void;
+  onSearch: (query: string) => void;
 };
 
 export function SearchOverlay({
@@ -28,9 +30,11 @@ export function SearchOverlay({
   onClose,
   onOpenClip,
   onOpenCreator,
+  onSearch,
 }: Props) {
   const t = copy(lang);
   const inputRef = useRef<HTMLInputElement>(null);
+  const armed = useRef(false);
   const [q, setQ] = useState(initialQuery);
   const [cursor, setCursor] = useState(0);
   const recents = useMemo(() => loadRecentSearches(), []);
@@ -48,9 +52,12 @@ export function SearchOverlay({
   type Row =
     | { kind: "clip"; slug: string }
     | { kind: "creator"; slug: string }
-    | { kind: "query"; q: string };
-  const rows: Row[] = q.trim()
+    | { kind: "query"; q: string }
+    | { kind: "search"; q: string };
+  const trimmed = q.trim();
+  const rows: Row[] = trimmed
     ? [
+        { kind: "search" as const, q: trimmed },
         ...creatorHits.map((h) => ({ kind: "creator" as const, slug: h.creator.slug })),
         ...clipHits.map((h) => ({ kind: "clip" as const, slug: h.clip.slug })),
       ]
@@ -64,8 +71,26 @@ export function SearchOverlay({
   }, []);
 
   useEffect(() => {
+    armed.current = false;
     setCursor(0);
   }, [q]);
+
+  const pick = (row: Row) => {
+    if (row.kind === "query") {
+      setQ(row.q);
+      return;
+    }
+    if (row.kind === "search") {
+      pushRecentSearch(row.q);
+      onSearch(row.q);
+      onClose();
+      return;
+    }
+    if (q.trim()) pushRecentSearch(q);
+    if (row.kind === "clip") onOpenClip(row.slug);
+    else onOpenCreator(row.slug);
+    onClose();
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -74,31 +99,28 @@ export function SearchOverlay({
         onClose();
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
+        armed.current = true;
         setCursor((i) => Math.min(rows.length - 1, i + 1));
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
+        armed.current = true;
         setCursor((i) => Math.max(0, i - 1));
       } else if (e.key === "Enter") {
         e.preventDefault();
+        const decision = enterAction(q, armed.current);
+        if (decision.type === "search") {
+          pushRecentSearch(decision.q);
+          onSearch(decision.q);
+          onClose();
+          return;
+        }
         const row = rows[cursor];
         if (row) pick(row);
-        else if (q.trim()) pushRecentSearch(q);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [rows, cursor, q]);
-
-  const pick = (row: Row) => {
-    if (row.kind === "query") {
-      setQ(row.q);
-      return;
-    }
-    if (q.trim()) pushRecentSearch(q);
-    if (row.kind === "clip") onOpenClip(row.slug);
-    else onOpenCreator(row.slug);
-    onClose();
-  };
+  }, [rows, cursor, q, onClose, onSearch]);
 
   return (
     <div class="overlay" onClick={onClose}>
@@ -121,6 +143,14 @@ export function SearchOverlay({
           {q.trim() && creatorHits.length > 0 && <p class="search-label">{t.searchCreators}</p>}
           {rows.length === 0 && q.trim() && <p class="rail-empty">{t.searchEmpty}</p>}
           {rows.map((row, i) => {
+            if (row.kind === "search") {
+              return (
+                <button key={`s-${row.q}`} class={`search-row ${i === cursor ? "is-on" : ""}`} type="button" onClick={() => pick(row)}>
+                  <IconSearch />
+                  <span>{t.searchSubmit.replace("{q}", row.q)}</span>
+                </button>
+              );
+            }
             if (row.kind === "query") {
               return (
                 <button key={`q-${row.q}`} class={`search-row ${i === cursor ? "is-on" : ""}`} type="button" onClick={() => pick(row)}>

@@ -22,6 +22,7 @@ export const IconPause = (p: P) => (
 );
 export const IconBack = (p: P) => svg("M15 5l-7 7 7 7", p);
 export const IconSearch = (p: P) => svg("M11 5a6 6 0 100 12 6 6 0 000-12zM20 20l-3.5-3.5", p);
+export const IconFilter = (p: P) => svg("M4 5h16l-6 7.5V19l-4-2v-4.5L4 5z", p);
 export const IconVolume = (p: P) => svg("M4 10v4h3l4 3V7L7 10H4zm12.2 1a3.2 3.2 0 010 2.2M16 7.5a6 6 0 010 9", p);
 export const IconMute = (p: P) => svg("M4 10v4h3l4 3V7L7 10H4zm16-3l-8 10m0-10l8 10", p);
 export const IconFull = (p: P) => svg("M8 4H4v4M16 4h4v4M8 20H4v-4M16 20h4v-4", p);
@@ -38,6 +39,18 @@ export const IconComment = (p: P) => svg("M5 6h14v9H8.5L5 18.5V6z", p);
 export const IconGrid = (p: P) => svg("M5 5h6v6H5V5zm8 0h6v6h-6V5zM5 13h6v6H5v-6zm8 0h6v6h-6v-6z", p);
 export const IconHome = (p: P) => svg("M4 10.5 12 4l8 6.5V20H15v-6H9v6H4v-9.5z", p);
 export const IconHistory = (p: P) => svg("M12 7v5l3 2M4.5 13a7.5 7.5 0 1 0 1.4-4.4L4 10M4 5v5h5", p);
+export function IconHeart({ filled, ...p }: P & { filled?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} aria-hidden="true" {...p}>
+      <path
+        d="M12 20.2l-1.45-1.32C5.4 14.36 2 11.28 2 7.5 2 4.42 4.42 2 7.5 2c1.74 0 3.41.81 4.5 2.09C13.09 2.81 14.76 2 16.5 2 19.58 2 22 4.42 22 7.5c0 3.78-3.4 6.86-8.55 11.38L12 20.2z"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linejoin="round"
+      />
+    </svg>
+  );
+}
 export const IconUsers = (p: P) =>
   svg("M8 11a3.2 3.2 0 100-6.4A3.2 3.2 0 008 11zm8.2-1.2a2.6 2.6 0 10-2.2-2.6M3.8 19v-1.4A3.6 3.6 0 017.4 14h1.2A3.6 3.6 0 0112.2 17.6V19m4.2-5h.8a3.2 3.2 0 013.2 3.2V19", p);
 export const IconViews = (p: P) => (

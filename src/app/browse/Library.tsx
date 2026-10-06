@@ -1,5 +1,5 @@
 import { useMemo, useState } from "preact/hooks";
-import { clipMatchesTags, sortClips, TAG_GROUPS, type TagGroupId } from "../data/filters";
+import { clipMatchesTags, isPublicClip, sortClips, TAG_GROUPS, type TagGroupId } from "../data/filters";
 import type { ClipListItem, Creator, CreatorSort, Lang, Trigger } from "../data/types";
 import { copy } from "../i18n";
 import { fill, triggerLabel } from "../lib";
@@ -32,7 +32,7 @@ export function Library({ catalog, counts, streamers, triggers, lang, presetTags
   const [shown, setShown] = useState(PAGE);
 
   const filtered = useMemo(() => {
-    const matched = catalog.filter((c) => clipMatchesTags(c, selected));
+    const matched = catalog.filter((c) => isPublicClip(c) && clipMatchesTags(c, selected));
     return sortClips(matched, sort, counts);
   }, [catalog, selected, sort, counts]);
 

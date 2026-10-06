@@ -1,23 +1,31 @@
 import type { ComponentChildren } from "preact";
-import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { AudioPage } from "./browse/AudioPage";
 import { CreatorPage } from "./browse/CreatorPage";
 import { CreatorsPage } from "./browse/CreatorsPage";
+import { FavoritesPage } from "./browse/FavoritesPage";
+import { GalleryPage } from "./browse/GalleryPage";
 import { HistoryPage } from "./browse/HistoryPage";
 import { Home } from "./browse/Home";
 import { Library } from "./browse/Library";
+import { PlaylistView } from "./browse/PlaylistView";
+import { SearchPage } from "./browse/SearchPage";
 import {
   bootstrapClip,
   ensureFullCatalog,
+  fetchAudio,
   fetchCatalog,
   fetchClip,
   fetchPlayCounts,
   fetchStreamers,
   fetchTriggers,
 } from "./data/client";
+import { collectionCreator, collectionHead, collectionMembers, galleryUrls, hasListedMembers } from "./data/decide";
 import { CATEGORIES, categoryTitle, libraryRouteForTag, parseRoute, toPath, type Route } from "./data/routes";
-import type { ClipDetail, ClipListItem, Creator, Trigger } from "./data/types";
+import { listFavorites } from "./data/storage";
+import type { AudioAlbum, AudioTrack, ClipDetail, ClipListItem, Creator, Trigger } from "./data/types";
 import { copy } from "./i18n";
-import { displayCreator } from "./lib";
+import { displayCreator, displayTitle } from "./lib";
 import { LogoMark } from "./icons";
 import { SearchOverlay } from "./overlays/SearchOverlay";
 import { Player } from "./player/Player";
@@ -40,7 +48,11 @@ export function App() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(route.kind === "clip");
   const [error, setError] = useState<string | null>(null);
-  const [searchOpen, setSearchOpen] = useState(() => route.kind === "home" && Boolean(route.q));
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [catalogFull, setCatalogFull] = useState(false);
+  const [audio, setAudio] = useState<{ albums: AudioAlbum[]; tracks: AudioTrack[] }>({ albums: [], tracks: [] });
+  const [audioReady, setAudioReady] = useState(false);
+  const audioLoaded = useRef(false);
   const [navOpen, setNavOpen] = useState(false);
   const [sideCollapsed, setSideCollapsed] = useState(false);
   const [narrow, setNarrow] = useState(() => window.matchMedia("(max-width: 720px)").matches);
@@ -54,7 +66,7 @@ export function App() {
       if (replace) history.replaceState(next, "", url);
       else history.pushState(next, "", url);
       setLoc({ lang, route: next });
-      if (next.kind !== "home" || !next.q) setSearchOpen(false);
+      setSearchOpen(false);
     },
     [lang],
   );
@@ -88,10 +100,26 @@ export function App() {
     void ensureFullCatalog().then((full) => {
       if (full.length) {
         full.sort((a, b) => +new Date(b.publishedAt) - +new Date(a.publishedAt));
-        setCatalog(full);
+        setCatalog((cur) => (cur.length > full.length ? cur : full));
       }
+      setCatalogFull(true);
     });
   }, []);
+
+  useEffect(() => {
+    const want = route.kind === "audio" || route.kind === "audio-album" || route.kind === "audio-creator";
+    if (!want || audioLoaded.current) return;
+    audioLoaded.current = true;
+    void fetchAudio()
+      .then((next) => {
+        setAudio(next);
+        setAudioReady(true);
+      })
+      .catch(() => {
+        audioLoaded.current = false;
+        setAudioReady(true);
+      });
+  }, [route]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -110,14 +138,23 @@ export function App() {
   }, [searchOpen]);
 
   useEffect(() => {
-    if (route.kind === "home" && route.q) setSearchOpen(true);
-  }, [route]);
+    if (route.kind !== "clip") return;
+    if (collectionCreator(route.slug)) {
+      go({ kind: "collection", slug: route.slug, order: "asc" }, true);
+      return;
+    }
+    const known = catalog.find((item) => item.slug === route.slug);
+    if (known?.kind === "collection") go({ kind: "collection", slug: route.slug, order: "asc" }, true);
+  }, [route, catalog, go]);
 
   useEffect(() => {
     if (route.kind !== "clip") {
       setLoading(false);
       return;
     }
+    if (collectionCreator(route.slug)) return;
+    const known = catalog.find((item) => item.slug === route.slug);
+    if (known?.kind === "collection") return;
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -143,9 +180,24 @@ export function App() {
     else if (route.kind === "library") document.title = `${categoryTitle(route.id, lang)} · ASMRHoney`;
     else if (route.kind === "creator") document.title = `${displayCreator(route.slug, streamerMap)} · ASMRHoney`;
     else if (route.kind === "history") document.title = `${t.history} · ASMRHoney`;
-  }, [route, lang, t.creators, t.history]);
+    else if (route.kind === "favorites" || route.kind === "playlist") document.title = `${t.favorites} · ASMRHoney`;
+    else if (route.kind === "search") document.title = `${route.q || t.searchClips} · ASMRHoney`;
+    else if (route.kind === "collection") document.title = `${t.collection} · ASMRHoney`;
+    else if (route.kind === "audio" || route.kind === "audio-album" || route.kind === "audio-creator") document.title = `${t.audioTitle} · ASMRHoney`;
+  }, [route, lang, t.creators, t.history, t.favorites, t.searchClips, t.collection, t.audioTitle, streamerMap]);
 
-  const openClip = (slug: string) => go({ kind: "clip", slug });
+  const openClip = (slug: string) => {
+    if (collectionCreator(slug)) {
+      go({ kind: "collection", slug, order: "asc" });
+      return;
+    }
+    const item = catalog.find((clip) => clip.slug === slug);
+    if (item?.kind === "collection") {
+      go({ kind: "collection", slug, order: "asc" });
+      return;
+    }
+    go({ kind: "clip", slug });
+  };
   const openCreator = (slug: string) => go({ kind: "creator", slug });
   const openHome = () => go({ kind: "home" });
   const openTag = (tag: string) => go(libraryRouteForTag(tag));
@@ -154,16 +206,16 @@ export function App() {
     go({ kind: "library", id, tags: cat?.tags || [] });
   };
 
-  const closeSearch = () => {
-    setSearchOpen(false);
-    if (route.kind === "home" && route.q) go({ kind: "home" }, true);
-  };
+  const closeSearch = () => setSearchOpen(false);
 
-  const sideActive = (current: Route): SideId => {
+  const sideActive = (current: Route): SideId | null => {
     if (current.kind === "library") return "library";
     if (current.kind === "creators" || current.kind === "creator") return "creators";
+    if (current.kind === "audio" || current.kind === "audio-album" || current.kind === "audio-creator") return "audio";
     if (current.kind === "history") return "history";
-    return "home";
+    if (current.kind === "favorites" || current.kind === "playlist") return "favorites";
+    if (current.kind === "home") return "home";
+    return null;
   };
 
   const toggleSide = () => {
@@ -179,7 +231,9 @@ export function App() {
         onHome={openHome}
         onLibrary={() => openCategory("asmr")}
         onCreators={() => go({ kind: "creators" })}
+        onAudio={() => go({ kind: "audio" })}
         onHistory={() => go({ kind: "history" })}
+        onFavorites={() => go({ kind: "favorites" })}
         onNavigate={() => setNavOpen(false)}
       />
       <button class="side-backdrop" type="button" aria-label={t.menu} onClick={() => setNavOpen(false)} />
@@ -242,6 +296,100 @@ export function App() {
         onOpenCreator={openCreator}
       />,
     );
+  } else if (route.kind === "favorites") {
+    page = browseChrome(
+      <FavoritesPage
+        catalog={catalog}
+        counts={counts}
+        streamers={streamerMap}
+        lang={lang}
+        onOpen={openClip}
+        onOpenCreator={openCreator}
+        onPlayAll={() => go({ kind: "playlist", order: "asc" })}
+      />,
+    );
+  } else if (route.kind === "playlist") {
+    const saved = listFavorites().flatMap((item) => {
+      const clip = catalog.find((row) => row.slug === item.slug);
+      if (!clip || clip.kind === "collection" || clip.collectionMedia === "images") return [];
+      return [clip];
+    });
+    page = browseChrome(
+      <PlaylistView
+        title={t.favorites}
+        items={saved}
+        order={route.order}
+        ready
+        lang={lang}
+        counts={counts}
+        streamers={streamerMap}
+        triggers={triggerMap}
+        catalog={catalog}
+        emptyLabel={t.favoritesEmpty}
+        onOrder={(order) => go({ kind: "playlist", order }, true)}
+        onHome={openHome}
+        onSearch={() => setSearchOpen(true)}
+        onTag={openTag}
+      />,
+    );
+  } else if (route.kind === "search") {
+    page = browseChrome(
+      <SearchPage
+        catalog={catalog}
+        counts={counts}
+        streamers={streamerMap}
+        triggers={triggerMap}
+        lang={lang}
+        query={route.q}
+        tags={route.tags}
+        dur={route.dur}
+        when={route.when}
+        sort={route.sort}
+        onChange={(next) => go({ kind: "search", q: next.q, tags: next.tags, dur: next.dur, when: next.when, sort: next.sort }, true)}
+        onOpen={openClip}
+        onOpenCreator={openCreator}
+      />,
+    );
+  } else if (route.kind === "collection") {
+    const head = collectionHead(catalog, route.slug);
+    const ready = catalogFull || head?.collectionMedia === "images" || hasListedMembers(catalog, route.slug);
+    const title = head ? displayTitle(head, lang) : route.slug;
+    page = browseChrome(
+      head?.collectionMedia === "images" ? (
+        <GalleryPage title={title} urls={galleryUrls(head)} note={t.collectionImages} hint={t.galleryHint} />
+      ) : (
+        <PlaylistView
+          title={title}
+          items={collectionMembers(catalog, route.slug)}
+          order={route.order}
+          ready={ready}
+          lang={lang}
+          counts={counts}
+          streamers={streamerMap}
+          triggers={triggerMap}
+          catalog={catalog}
+          emptyLabel={t.collectionEmpty}
+          onOrder={(order) => go({ kind: "collection", slug: route.slug, order }, true)}
+          onHome={openHome}
+          onSearch={() => setSearchOpen(true)}
+          onTag={openTag}
+        />
+      ),
+    );
+  } else if (route.kind === "audio" || route.kind === "audio-album" || route.kind === "audio-creator") {
+    page = browseChrome(
+      <AudioPage
+        view={route}
+        albums={audio.albums}
+        tracks={audio.tracks}
+        streamers={streamerMap}
+        lang={lang}
+        onOpenCreator={(slug) => go({ kind: "audio-creator", slug })}
+        onOpenAlbum={(slug) => go({ kind: "audio-album", slug })}
+        onBack={() => go({ kind: "audio" })}
+        ready={audioReady}
+      />,
+    );
   } else if (route.kind === "history") {
     page = browseChrome(
       <HistoryPage
@@ -299,6 +447,8 @@ export function App() {
         counts={counts}
         streamers={streamerMap}
         lang={lang}
+        region={route.region || "all"}
+        onRegion={(region) => go({ kind: "home", region }, true)}
         onOpen={openClip}
         onOpenCreator={openCreator}
       />,
@@ -315,10 +465,11 @@ export function App() {
           streamers={streamerMap}
           triggers={triggerMap}
           lang={lang}
-          initialQuery={route.kind === "home" ? route.q || "" : ""}
+          initialQuery={route.kind === "search" ? route.q : ""}
           onClose={closeSearch}
           onOpenClip={openClip}
           onOpenCreator={(slug) => go({ kind: "creator", slug })}
+          onSearch={(query) => go({ kind: "search", q: query, tags: [], dur: "any", when: "any", sort: "new" })}
         />
       )}
     </>

@@ -19,6 +19,15 @@ export type ClipListItem = {
   coverAvifUrl?: string;
   audioOnly?: boolean;
   status?: string;
+  kind?: string;
+  collectionSlug?: string;
+  collectionCount?: number;
+  collectionMedia?: string;
+  collectionCovers?: string[];
+  collectionOrder?: number;
+  collectionTitle?: string;
+  hideFromLibrary?: boolean;
+  parentCollectionSlug?: string;
 };
 
 export type SubtitleTrack = {
@@ -49,6 +58,7 @@ export type Creator = {
   bio?: string;
   active?: boolean;
   region?: string;
+  creatorGroup?: string;
   avatarUrl?: string;
   coverUrl?: string;
 };
@@ -81,6 +91,39 @@ export type DrawerLayer =
   | { type: "creator"; slug: string };
 
 export type CreatorSort = "new" | "views" | "duration" | "comments";
+
+export type AudioTrack = {
+  slug: string;
+  title: string;
+  title_en?: string;
+  title_ja?: string;
+  title_ko?: string;
+  creator: string;
+  duration: number;
+  publishedAt: string;
+  audioUrl: string;
+  coverUrl?: string;
+  format?: string;
+  status?: string;
+  albumSlug?: string;
+  trackNo?: number;
+};
+
+export type AudioAlbum = {
+  slug: string;
+  title: string;
+  title_en?: string;
+  title_ja?: string;
+  title_ko?: string;
+  creator: string;
+  trackCount?: number;
+  totalDuration?: number;
+  coverUrl?: string;
+  coverWebpUrl?: string;
+  coverAvifUrl?: string;
+  publishedAt?: string;
+  status?: string;
+};
 
 declare global {
   interface Window {
