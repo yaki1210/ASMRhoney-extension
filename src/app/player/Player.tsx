@@ -3,7 +3,7 @@ import { fetchComments } from "../data/client";
 import { isFavorite, toggleFavorite } from "../data/storage";
 import type { ClipDetail, ClipListItem, Comment, Creator, DrawerLayer, Lang, Trigger } from "../data/types";
 import { ClipGrid } from "../browse/ClipGrid";
-import { PageFullscreenButton } from "../shell/PageFullscreen";
+import { PageFullscreenButton, usePageFullscreen } from "../shell/PageFullscreen";
 import { CommentsPanel } from "../drawer/CommentsPanel";
 import { CreatorPanel } from "../drawer/CreatorPanel";
 import { copy } from "../i18n";
@@ -107,6 +107,7 @@ export function Player({
   const sleepLeft = p.sleepUntil ? Math.max(0, Math.ceil((p.sleepUntil - Date.now()) / 1000)) : 0;
   const current = stack[stack.length - 1];
   const railOpen = stack.length > 0;
+  const pageFs = usePageFullscreen();
   const onCommentsOpenChangeRef = useRef(onCommentsOpenChange);
   const onCommentCountRef = useRef(onCommentCount);
   onCommentsOpenChangeRef.current = onCommentsOpenChange;
@@ -223,7 +224,7 @@ export function Player({
         : t.related;
 
   return (
-    <div class={`shell ${embed ? "is-embed" : ""} ${current?.type === "comments" ? "is-comments" : ""} ${!embed && railOpen ? "is-rail" : ""}`}>
+    <div class={`shell ${embed ? "is-embed" : ""} ${current?.type === "comments" ? "is-comments" : ""} ${!embed && railOpen ? "is-rail" : ""} ${!embed && pageFs.on ? "is-page-fs" : ""}`}>
       <Topbar lang={lang} onHome={onHome} onSearch={onSearch}>
         <button
           class={`comment-bubble ${current?.type === "comments" ? "is-on" : ""}`}
@@ -432,7 +433,7 @@ export function Player({
                     <button class="icon-btn" type="button" onClick={p.togglePip} title={t.pip}>
                       <IconPip />
                     </button>
-                    <PageFullscreenButton lang={lang} class="icon-btn" />
+                    <PageFullscreenButton lang={lang} class="icon-btn" on={pageFs.on} toggle={pageFs.toggle} />
                     <button class="icon-btn" type="button" onClick={p.toggleFullscreen} title={t.fullscreen}>
                       <IconFull />
                     </button>

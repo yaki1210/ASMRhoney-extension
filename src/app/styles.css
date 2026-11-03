@@ -2035,3 +2035,23 @@ html, .side, .rail, .search-body, .rail-list, .playlist-list {
 }
 .clip-views svg { width: 11px; height: 11px; flex-shrink: 0; }
 .clip-date { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; }
+
+/* 网页全屏 / webpage fullscreen: CSS-only theater filling the browser viewport */
+html.ahx-page-fs, html.ahx-page-fs body { overflow: hidden; }
+.shell.is-page-fs {
+  position: fixed; inset: 0; z-index: 2000;
+  width: 100vw; height: 100dvh; max-width: none; margin: 0; padding: 0;
+  background: #000; display: block; overflow: hidden;
+}
+.shell.is-page-fs .topbar,
+.shell.is-page-fs .meta,
+.shell.is-page-fs .rail { display: none !important; }
+.shell.is-page-fs .workspace {
+  display: block; height: 100%; min-height: 0; padding: 0; margin: 0;
+  grid-template-columns: 1fr; max-width: none;
+}
+.shell.is-page-fs .theater { display: flex; height: 100%; min-height: 0; padding: 0; margin: 0; }
+.shell.is-page-fs .frame {
+  flex: 1; width: 100%; height: 100%; aspect-ratio: auto;
+  max-height: none; border-radius: 0; margin: 0;
+}
