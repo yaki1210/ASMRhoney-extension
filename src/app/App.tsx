@@ -36,6 +36,12 @@ function read() {
   return parseRoute(location.pathname, location.search);
 }
 
+/** How many in-app history entries sit behind the current one (set by `go`). */
+function spaDepth(): number {
+  const d = (history.state as { __depth?: unknown } | null)?.__depth;
+  return typeof d === "number" && d > 0 ? d : 0;
+}
+
 export function App() {
   const [{ lang, route }, setLoc] = useState(read);
   const [clip, setClip] = useState<ClipDetail | null>(() => {
@@ -72,8 +78,10 @@ export function App() {
   const go = useCallback(
     (next: Route, replace = false) => {
       const url = toPath(next, lang);
-      if (replace) history.replaceState(next, "", url);
-      else history.pushState(next, "", url);
+      // __depth counts in-app entries behind this one; 0 = first entry of this tab (e.g. a new-tab clip).
+      const depth = spaDepth();
+      if (replace) history.replaceState({ ...next, __depth: depth }, "", url);
+      else history.pushState({ ...next, __depth: depth + 1 }, "", url);
       setLoc({ lang, route: next });
       setSearchOpen(false);
     },
@@ -252,8 +260,9 @@ export function App() {
   };
 
   const goBack = () => {
-    if (history.length > 1) history.back();
-    else openHome();
+    // Only go back when the previous entry is ours; new tabs may have about:blank / another site behind them.
+    if (spaDepth() > 0) history.back();
+    else go({ kind: "home" }, true);
   };
 
   const browseChrome = (body: ComponentChildren, options?: { play?: boolean }) => (
@@ -308,6 +317,7 @@ export function App() {
           lang={lang}
           onOpen={openClip}
           onHome={openHome}
+          onBack={goBack}
           onSearch={() => setSearchOpen(true)}
           onTag={openTag}
         />

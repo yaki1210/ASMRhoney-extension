@@ -2003,3 +2003,14 @@ html, .side, .rail, .search-body, .rail-list, .playlist-list {
 .playlist-row:hover .row-remove, .row-remove:focus-visible { opacity: 1; }
 .row-remove:hover { background: rgba(255,255,255,0.08); color: var(--gold); }
 @media (hover: none) { .row-remove, .drag-handle { opacity: 1; } }
+
+/* v0.7: pager jump input */
+.pager-label { display: inline-flex; align-items: center; gap: 6px; }
+.pager-input {
+  width: auto; min-width: 2.6em; height: 30px; padding: 0 6px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: rgba(255,255,255,0.04); color: var(--cream);
+  font: inherit; font-variant-numeric: tabular-nums; text-align: center;
+}
+.pager-input:hover { border-color: oklch(0.82 0.14 78 / 0.45); }
+.pager-input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px oklch(0.82 0.14 78 / 0.18); }

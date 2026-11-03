@@ -87,6 +87,7 @@ export function Player({
   onCommentCount,
 }: Props) {
   const t = copy(lang);
+  const goBack = () => (onBack ? onBack() : onHome());
   const p = usePlayer(clip, { autoplay, onEnded });
   const barRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -258,7 +259,7 @@ export function Player({
               <button
                 class="player-back"
                 type="button"
-                onClick={() => (onBack ? onBack() : history.length > 1 ? history.back() : onHome())}
+                onClick={goBack}
                 title={t.back}
                 aria-label={t.back}
               >
@@ -304,7 +305,7 @@ export function Player({
 
             <div class="hud" onClick={(e) => e.stopPropagation()}>
               <div class="hud-top">
-                <button class="icon-btn" type="button" onClick={() => (history.length > 1 ? history.back() : onOpen(clip.slug))} title={t.back}>
+                <button class="icon-btn" type="button" onClick={goBack} title={t.back}>
                   <IconBack />
                 </button>
                 <div class="hud-title">
