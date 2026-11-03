@@ -23,7 +23,7 @@ import {
 import { collectionCreator, collectionHead, collectionMembers, galleryUrls, hasListedMembers } from "./data/decide";
 import { CATEGORIES, categoryTitle, libraryRouteForTag, parseRoute, toPath, type Route } from "./data/routes";
 import { listFavorites } from "./data/storage";
-import type { AudioAlbum, AudioTrack, ClipDetail, ClipListItem, Creator, Trigger } from "./data/types";
+import type { AudioAlbum, AudioTrack, CatalogStatus, ClipDetail, ClipListItem, Creator, Trigger } from "./data/types";
 import { copy } from "./i18n";
 import { displayCreator, displayTitle } from "./lib";
 import { LogoMark } from "./icons";
@@ -50,6 +50,15 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [catalogFull, setCatalogFull] = useState(false);
+  // Loading anchor: grids render clips only when status is "ready"; rev bumps on every applied fetch.
+  const [catalogStatus, setCatalogStatus] = useState<CatalogStatus>("loading");
+  const [catalogRev, setCatalogRev] = useState(0);
+  const catalogLoad = useRef(0);
+  useEffect(() => {
+    // Expose the anchor for debugging / e2e checks: <html data-catalog="ready" data-catalog-rev="2">
+    document.documentElement.dataset.catalog = catalogStatus;
+    document.documentElement.dataset.catalogRev = String(catalogRev);
+  }, [catalogStatus, catalogRev]);
   const [audio, setAudio] = useState<{ albums: AudioAlbum[]; tracks: AudioTrack[] }>({ albums: [], tracks: [] });
   const [audioReady, setAudioReady] = useState(false);
   const audioLoaded = useRef(false);
@@ -92,13 +101,33 @@ export function App() {
     void fetchStreamers().then(setStreamers).catch(() => setStreamers([]));
     void fetchTriggers().then(setTriggers).catch(() => setTriggers([]));
     void fetchPlayCounts().then(setCounts);
-    void fetchCatalog(4).then((clips) => {
-      setCatalog((cur) => (cur.length > clips.length ? cur : clips));
-    });
+    // Each load gets an id; late responses from an older load are ignored, and results
+    // replace the catalog instead of keeping a longer stale list.
+    const load = ++catalogLoad.current;
+    let fullApplied = false;
+    let partialEmpty = false;
+    setCatalogStatus("loading");
+    const apply = (clips: ClipListItem[]) => {
+      setCatalog(clips);
+      setCatalogRev((n) => n + 1);
+      setCatalogStatus("ready");
+    };
+    void fetchCatalog(4)
+      .catch(() => [] as ClipListItem[])
+      .then((clips) => {
+        if (load !== catalogLoad.current || fullApplied) return;
+        if (clips.length) apply(clips);
+        else partialEmpty = true;
+      });
     void ensureFullCatalog().then((full) => {
+      if (load !== catalogLoad.current) return;
       if (full.length) {
         full.sort((a, b) => +new Date(b.publishedAt) - +new Date(a.publishedAt));
-        setCatalog((cur) => (cur.length > full.length ? cur : full));
+        fullApplied = true;
+        apply(full);
+      } else {
+        // Keep partial results if we have them; error only when nothing arrived at all.
+        setCatalogStatus((cur) => (cur === "ready" ? cur : partialEmpty ? "error" : cur));
       }
       setCatalogFull(true);
     });
@@ -342,6 +371,7 @@ export function App() {
     page = browseChrome(
       <SearchPage
         catalog={catalog}
+        status={catalogStatus}
         counts={counts}
         streamers={streamerMap}
         triggers={triggerMap}
@@ -446,6 +476,7 @@ export function App() {
         <Library
           key={`${route.id}:${route.tags.join("|")}`}
           catalog={catalog}
+          status={catalogStatus}
           counts={counts}
           streamers={streamerMap}
           triggers={triggerMap}
@@ -472,6 +503,7 @@ export function App() {
     page = browseChrome(
       <Home
         catalog={catalog}
+        status={catalogStatus}
         counts={counts}
         streamers={streamerMap}
         lang={lang}

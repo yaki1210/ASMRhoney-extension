@@ -28,7 +28,17 @@ export function ClipGrid({ clips, currentSlug, counts, streamers, lang, onOpen, 
             onClick={() => onOpen(item.slug)}
           >
             <span class="clip-thumb">
-              {src ? <img src={src} alt="" loading="lazy" /> : null}
+              {src ? (
+                <img
+                  key={src}
+                  src={src}
+                  alt=""
+                  loading="lazy"
+                  class="is-pending"
+                  onLoad={(e) => e.currentTarget.classList.remove("is-pending")}
+                  onError={(e) => e.currentTarget.classList.add("is-broken")}
+                />
+              ) : null}
               <em>{formatDuration(item.duration)}</em>
               {onRemove && (
                 <button

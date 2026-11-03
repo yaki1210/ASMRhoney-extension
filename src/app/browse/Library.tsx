@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { libraryClipVisible, type LibraryRegion } from "../data/decide";
 import { sortClips, TAG_GROUPS, type TagGroupId } from "../data/filters";
-import type { ClipListItem, Creator, CreatorSort, Lang, Trigger } from "../data/types";
+import type { CatalogStatus, ClipListItem, Creator, CreatorSort, Lang, Trigger } from "../data/types";
 import { copy } from "../i18n";
 import { fill, triggerLabel } from "../lib";
 import { displayPage } from "../data/paging";
 import { ClipGrid } from "./ClipGrid";
+import { GridLoading } from "./GridLoading";
 import { Pager } from "./Pager";
 
 const GROUP_COPY: Record<TagGroupId, "groupRating" | "groupSounds" | "groupBody" | "groupScene"> = {
@@ -17,6 +18,7 @@ const GROUP_COPY: Record<TagGroupId, "groupRating" | "groupSounds" | "groupBody"
 
 type Props = {
   catalog: ClipListItem[];
+  status: CatalogStatus;
   counts: Record<string, number>;
   streamers: Map<string, Creator>;
   triggers: Map<string, Trigger>;
@@ -30,6 +32,7 @@ type Props = {
 
 export function Library({
   catalog,
+  status,
   counts,
   streamers,
   triggers,
@@ -97,8 +100,8 @@ export function Library({
           </button>
         )}
       </div>
-      {!catalog.length ? (
-        <p class="rail-empty">{t.loading}</p>
+      {status !== "ready" ? (
+        <GridLoading status={status} lang={lang} />
       ) : visible.length ? (
         <ClipGrid
           clips={visible}
@@ -112,7 +115,7 @@ export function Library({
       ) : (
         <p class="rail-empty">{t.noResults}</p>
       )}
-      <Pager page={win.uiPage} count={win.uiPageCount} lang={lang} onPage={setPage} />
+      {status === "ready" && <Pager page={win.uiPage} count={win.uiPageCount} lang={lang} onPage={setPage} />}
     </div>
   );
 }

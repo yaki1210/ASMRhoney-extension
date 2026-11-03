@@ -134,3 +134,6 @@ declare global {
 }
 
 export {};
+
+/** Loading anchor for browse grids: only "ready" means `catalog` reflects the latest completed fetch. */
+export type CatalogStatus = "loading" | "ready" | "error";

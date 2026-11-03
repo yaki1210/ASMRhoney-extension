@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { selectSearchResults } from "../data/decide";
 import { TAG_GROUPS, type DurFilter, type SearchSort, type TagGroupId, type WhenFilter } from "../data/filters";
-import type { ClipListItem, Creator, Lang, Trigger } from "../data/types";
+import type { CatalogStatus, ClipListItem, Creator, Lang, Trigger } from "../data/types";
 import { copy } from "../i18n";
 import { IconFilter } from "../icons";
 import { fill, triggerLabel } from "../lib";
 import { displayPage } from "../data/paging";
 import { ClipGrid } from "./ClipGrid";
+import { GridLoading } from "./GridLoading";
 import { Pager } from "./Pager";
 
 const GROUP_COPY: Record<TagGroupId, "groupRating" | "groupSounds" | "groupBody" | "groupScene"> = {
@@ -18,6 +19,7 @@ const GROUP_COPY: Record<TagGroupId, "groupRating" | "groupSounds" | "groupBody"
 
 type Props = {
   catalog: ClipListItem[];
+  status: CatalogStatus;
   counts: Record<string, number>;
   streamers: Map<string, Creator>;
   triggers: Map<string, Trigger>;
@@ -34,6 +36,7 @@ type Props = {
 
 export function SearchPage({
   catalog,
+  status,
   counts,
   streamers,
   triggers,
@@ -149,7 +152,9 @@ export function SearchPage({
           )}
         </div>
       )}
-      {results.length ? (
+      {status !== "ready" ? (
+        <GridLoading status={status} lang={lang} />
+      ) : results.length ? (
         <>
           <ClipGrid
             clips={win.items}
@@ -162,7 +167,7 @@ export function SearchPage({
           <Pager page={win.uiPage} count={win.uiPageCount} lang={lang} onPage={setPage} />
         </>
       ) : (
-        <p class="rail-empty">{catalog.length ? t.searchEmpty : t.loading}</p>
+        <p class="rail-empty">{t.searchEmpty}</p>
       )}
     </div>
   );

@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { clipInRegion, type LibraryRegion } from "../data/decide";
 import { isPublicClip, sortClips } from "../data/filters";
-import type { ClipListItem, Creator, Lang } from "../data/types";
+import type { CatalogStatus, ClipListItem, Creator, Lang } from "../data/types";
 import { copy } from "../i18n";
 import { displayPage } from "../data/paging";
 import { ClipGrid } from "./ClipGrid";
+import { GridLoading } from "./GridLoading";
 import { Pager } from "./Pager";
 
 type Props = {
   catalog: ClipListItem[];
+  status: CatalogStatus;
   counts: Record<string, number>;
   streamers: Map<string, Creator>;
   lang: Lang;
@@ -18,7 +20,7 @@ type Props = {
   onOpenCreator: (slug: string) => void;
 };
 
-export function Home({ catalog, counts, streamers, lang, region, onRegion, onOpen, onOpenCreator }: Props) {
+export function Home({ catalog, status, counts, streamers, lang, region, onRegion, onOpen, onOpenCreator }: Props) {
   const t = copy(lang);
   const [page, setPage] = useState(1);
   const regions: { id: LibraryRegion; label: string }[] = [
@@ -45,14 +47,14 @@ export function Home({ catalog, counts, streamers, lang, region, onRegion, onOpe
           </button>
         ))}
       </div>
-      {catalog.length ? (
+      {status === "ready" ? (
         <>
           <ClipGrid clips={visible} counts={counts} streamers={streamers} lang={lang} onOpen={onOpen} onOpenCreator={onOpenCreator} />
           <Pager page={win.uiPage} count={win.uiPageCount} lang={lang} onPage={setPage} />
           {!visible.length && <p class="rail-empty">{t.noResults}</p>}
         </>
       ) : (
-        <p class="rail-empty">{t.loading}</p>
+        <GridLoading status={status} lang={lang} />
       )}
     </div>
   );
