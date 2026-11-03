@@ -3,6 +3,7 @@ import { copy } from "../i18n";
 import { IconHeart, IconViews } from "../icons";
 import { toPath } from "../data/routes";
 import { useDragReorder } from "./useDragReorder";
+import { formatDate } from "../lib";
 import { coverSrc, displayCreator, displayTitle, formatCount, formatDuration } from "../lib";
 
 type Props = {
@@ -28,6 +29,7 @@ export function ClipGrid({ clips, currentSlug, counts, streamers, lang, onOpen, 
       {clips.map((item, i) => {
         const views = counts[item.slug] ?? item.playCount ?? 0;
         const src = coverSrc(item);
+        const date = formatDate(item.publishedAt);
         const href = toPath({ kind: "clip", slug: item.slug }, lang);
         const blank = openMode === "blank";
         // Real links: middle/ctrl-click work everywhere; plain click is SPA in "same" mode.
@@ -64,6 +66,12 @@ export function ClipGrid({ clips, currentSlug, counts, streamers, lang, onOpen, 
                   onError={(e) => e.currentTarget.classList.add("is-broken")}
                 />
               ) : null}
+              {views > 0 && (
+                <span class="clip-views" title={t.views}>
+                  <IconViews />
+                  {formatCount(views)}
+                </span>
+              )}
               <em>{formatDuration(item.duration)}</em>
               </a>
               {onRemove && (
@@ -95,11 +103,10 @@ export function ClipGrid({ clips, currentSlug, counts, streamers, lang, onOpen, 
                 >
                   {displayCreator(item.creator, streamers)}
                 </button>
-                {views > 0 && (
-                  <span class="view-count" title={t.views}>
-                    <IconViews />
-                    {formatCount(views)}
-                  </span>
+                {date && (
+                  <time class="clip-date" dateTime={item.publishedAt} title={`${t.sortUploaded} ${date}`}>
+                    {date}
+                  </time>
                 )}
               </span>
             </span>

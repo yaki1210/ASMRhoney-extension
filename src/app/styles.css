@@ -2014,3 +2014,24 @@ html, .side, .rail, .search-body, .rail-list, .playlist-list {
 }
 .pager-input:hover { border-color: oklch(0.82 0.14 78 / 0.45); }
 .pager-input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px oklch(0.82 0.14 78 / 0.18); }
+
+/* v0.7: views badge on cover (bottom-left), upload date in meta */
+.clip-views {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 72px);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.65);
+  color: var(--cream);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.clip-views svg { width: 11px; height: 11px; flex-shrink: 0; }
+.clip-date { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; }

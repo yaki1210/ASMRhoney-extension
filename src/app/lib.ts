@@ -9,6 +9,15 @@ export function formatDuration(sec: number) {
   return `${m}:${String(r).padStart(2, "0")}`;
 }
 
+/** Upload date as YYYY-MM-DD (local time). Invalid/missing → "". */
+export function formatDate(publishedAt?: string | null) {
+  if (!publishedAt) return "";
+  const d = new Date(publishedAt);
+  if (Number.isNaN(+d)) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 export function formatCount(n: number) {
   if (!Number.isFinite(n) || n <= 0) return "";
   if (n >= 10000) return `${(n / 10000).toFixed(n >= 100000 ? 0 : 1).replace(/\.0$/, "")} 万`;
