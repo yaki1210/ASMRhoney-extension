@@ -1,6 +1,7 @@
 import type { ClipListItem, Creator, Lang } from "../data/types";
 import { copy } from "../i18n";
 import { IconHeart, IconViews } from "../icons";
+import { toPath } from "../data/routes";
 import { coverSrc, displayCreator, displayTitle, formatCount, formatDuration } from "../lib";
 
 type Props = {
@@ -12,22 +13,40 @@ type Props = {
   onOpen: (slug: string) => void;
   onOpenCreator: (slug: string) => void;
   onRemove?: (slug: string) => void;
+  /** "blank" opens clips in a new tab via real links; "same" keeps SPA navigation. */
+  openMode?: "same" | "blank";
 };
 
-export function ClipGrid({ clips, currentSlug, counts, streamers, lang, onOpen, onOpenCreator, onRemove }: Props) {
+export function ClipGrid({ clips, currentSlug, counts, streamers, lang, onOpen, onOpenCreator, onRemove, openMode = "same" }: Props) {
   const t = copy(lang);
   return (
     <div class="clip-grid">
       {clips.map((item) => {
         const views = counts[item.slug] ?? item.playCount ?? 0;
         const src = coverSrc(item);
+        const href = toPath({ kind: "clip", slug: item.slug }, lang);
+        const blank = openMode === "blank";
+        // Real links: middle/ctrl-click work everywhere; plain click is SPA in "same" mode.
+        const linkProps = blank
+          ? { href, target: "_blank", rel: "noopener noreferrer", onClick: (e: MouseEvent) => e.stopPropagation() }
+          : {
+              href,
+              onClick: (e: MouseEvent) => {
+                if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) { e.stopPropagation(); return; }
+                e.preventDefault();
+              },
+            };
         return (
           <article
             key={item.slug}
             class={`clip-card ${item.slug === currentSlug ? "is-on" : ""}`}
-            onClick={() => onOpen(item.slug)}
+            onClick={() => {
+              if (blank) window.open(href, "_blank", "noopener,noreferrer");
+              else onOpen(item.slug);
+            }}
           >
             <span class="clip-thumb">
+              <a class="clip-thumb-link" {...linkProps} tabIndex={-1} aria-hidden="true">
               {src ? (
                 <img
                   key={src}
@@ -40,6 +59,7 @@ export function ClipGrid({ clips, currentSlug, counts, streamers, lang, onOpen, 
                 />
               ) : null}
               <em>{formatDuration(item.duration)}</em>
+              </a>
               {onRemove && (
                 <button
                   class="clip-unsave"
@@ -55,7 +75,9 @@ export function ClipGrid({ clips, currentSlug, counts, streamers, lang, onOpen, 
               )}
             </span>
             <span class="clip-copy">
-              <b>{displayTitle(item, lang)}</b>
+              <a class="clip-title" {...linkProps}>
+                <b>{displayTitle(item, lang)}</b>
+              </a>
               <span class="clip-meta">
                 <button
                   class="clip-creator"

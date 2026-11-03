@@ -3,6 +3,7 @@ import { fetchComments } from "../data/client";
 import { isFavorite, toggleFavorite } from "../data/storage";
 import type { ClipDetail, ClipListItem, Comment, Creator, DrawerLayer, Lang, Trigger } from "../data/types";
 import { ClipGrid } from "../browse/ClipGrid";
+import { PageFullscreenButton } from "../shell/PageFullscreen";
 import { CommentsPanel } from "../drawer/CommentsPanel";
 import { CreatorPanel } from "../drawer/CreatorPanel";
 import { copy } from "../i18n";
@@ -430,6 +431,7 @@ export function Player({
                     <button class="icon-btn" type="button" onClick={p.togglePip} title={t.pip}>
                       <IconPip />
                     </button>
+                    <PageFullscreenButton lang={lang} class="icon-btn" />
                     <button class="icon-btn" type="button" onClick={p.toggleFullscreen} title={t.fullscreen}>
                       <IconFull />
                     </button>

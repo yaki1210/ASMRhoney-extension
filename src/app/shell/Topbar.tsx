@@ -1,6 +1,7 @@
 import type { ComponentChildren } from "preact";
 import type { Lang } from "../data/types";
 import { copy } from "../i18n";
+import { PageFullscreenButton } from "./PageFullscreen";
 import { IconList, IconSearch, LogoMark } from "../icons";
 
 type Props = {
@@ -41,7 +42,10 @@ export function Topbar({ lang, onHome, onSearch, onMenu, menuExpanded, menuLabel
         <span>{t.searchPlaceholder}</span>
         <kbd>{t.searchHint}</kbd>
       </button>
-      <div class="top-actions">{children}</div>
+      <div class="top-actions">
+        {children}
+        <PageFullscreenButton lang={lang} />
+      </div>
     </header>
   );
 }

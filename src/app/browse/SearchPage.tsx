@@ -157,6 +157,7 @@ export function SearchPage({
       ) : results.length ? (
         <>
           <ClipGrid
+            openMode="blank"
             clips={win.items}
             counts={counts}
             streamers={streamers}

@@ -104,6 +104,7 @@ export function Library({
         <GridLoading status={status} lang={lang} />
       ) : visible.length ? (
         <ClipGrid
+            openMode="blank"
           clips={visible}
           currentSlug={currentSlug}
           counts={counts}

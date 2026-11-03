@@ -1942,3 +1942,48 @@ a { color: inherit; text-decoration: none; }
 @keyframes skel { to { background-position: -200% 0; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner, .skel-line, .clip-card.is-skeleton .clip-thumb { animation: none; } }
+
+/* v0.7: clip links */
+.clip-thumb-link { position: absolute; inset: 0; display: block; color: inherit; }
+.clip-title { color: inherit; text-decoration: none; min-width: 0; }
+.clip-title b { display: block; }
+.page-fs-btn.is-active { color: var(--gold); }
+
+/* v0.7: scrollbars */
+html, .side, .rail, .search-body, .rail-list, .playlist-list {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.82 0.14 78 / 0.38) transparent;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: oklch(0.82 0.14 78 / 0.28);
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: oklch(0.82 0.14 78 / 0.55); }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* v0.7: seek bars (bigger hit area, refined track + thumb; geometry is CSS-only, drag math unchanged) */
+.seek { height: 20px; margin-bottom: 4px; touch-action: none; }
+.seek::before, .seek-buf, .seek-played { top: 8px; height: 4px; transition: height 0.14s var(--ease), top 0.14s var(--ease); }
+.seek::before { background: rgba(255,255,255,0.16); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
+.seek-buf { background: rgba(255,255,255,0.26); }
+.seek-played { background: linear-gradient(90deg, var(--gold-deep), var(--gold)); box-shadow: 0 0 10px oklch(0.82 0.14 78 / 0.35); }
+.seek:hover::before, .seek:hover .seek-buf, .seek:hover .seek-played { top: 7px; height: 6px; }
+.seek-thumb {
+  top: 3px; width: 14px; height: 14px;
+  background: radial-gradient(circle at 35% 35%, #fff, var(--cream) 60%);
+  box-shadow: 0 0 0 3px oklch(0.82 0.14 78 / 0.35), 0 2px 6px rgba(0,0,0,0.5);
+}
+.audio-seek { height: 20px; }
+.audio-seek-track, .audio-seek-played { top: 8px; height: 4px; transition: height 0.14s var(--ease), top 0.14s var(--ease); }
+.audio-seek-track { background: rgba(255,255,255,0.16); }
+.audio-seek-played { box-shadow: 0 0 10px oklch(0.82 0.14 78 / 0.35); }
+.audio-seek:hover .audio-seek-track, .audio-seek:hover .audio-seek-played { top: 7px; height: 6px; }
+.audio-seek-thumb {
+  top: 3px; width: 14px; height: 14px;
+  background: radial-gradient(circle at 35% 35%, #fff, var(--cream) 60%);
+  box-shadow: 0 0 0 3px oklch(0.82 0.14 78 / 0.3), 0 2px 6px rgba(0,0,0,0.5);
+}

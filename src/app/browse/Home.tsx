@@ -49,7 +49,8 @@ export function Home({ catalog, status, counts, streamers, lang, region, onRegio
       </div>
       {status === "ready" ? (
         <>
-          <ClipGrid clips={visible} counts={counts} streamers={streamers} lang={lang} onOpen={onOpen} onOpenCreator={onOpenCreator} />
+          <ClipGrid
+            openMode="blank" clips={visible} counts={counts} streamers={streamers} lang={lang} onOpen={onOpen} onOpenCreator={onOpenCreator} />
           <Pager page={win.uiPage} count={win.uiPageCount} lang={lang} onPage={setPage} />
           {!visible.length && <p class="rail-empty">{t.noResults}</p>}
         </>

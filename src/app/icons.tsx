@@ -66,3 +66,5 @@ export function LogoMark() {
     </span>
   );
 }
+export const IconPageFull = (p: P) => svg("M3 5h18v14H3V5zm4 4V7.5h2.5M17 9V7.5h-2.5M7 15v1.5h2.5M17 15v1.5h-2.5", p);
+export const IconPageExit = (p: P) => svg("M3 5h18v14H3V5zm6.5 2.5V9H8m6.5-1.5V9H16m-6.5 7.5V15H8m6.5 1.5V15H16", p);
