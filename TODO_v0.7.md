@@ -1,4 +1,4 @@
-﻿# ASMRhoney v0.7 — 浏览与列表 UX
+# ASMRhoney v0.7 — 浏览与列表 UX
 
 基线：`v0.6.0` / 分支 `feature/v0.7-browse-ux`  
 仓库：`yaki1210/ASMRhoney-extension`  
@@ -7,8 +7,8 @@
 ## 版本管理
 
 - [x] 从 `master`（v0.6.0）拉出 `feature/v0.7-browse-ux`
-- [ ] 功能合入前按项小提交；完成后打 `v0.7.0` 并合并回 `master`
-- [ ] 根目录截图 / `dist-ext.zip` 继续不进 git（保持 untracked）
+- [x] 功能合入前按项小提交；完成后打 `v0.7.0` 并合并回 `master`
+- [x] 根目录截图 / `dist-ext.zip` 继续不进 git（保持 untracked）
 
 ## 功能 TODO
 
@@ -66,8 +66,15 @@
 5. 网页全屏  
 6. 滚动条 + 进度条样式  
 
-**本批已全部落地到本机分支 eature/v0.7-browse-ux（翻页 / 加载锚点 / 新窗口 / 网页全屏 / 滚动条进度条 / 列表删除拖拽）。未推送、未升版本号。
+**本批已全部落地到本机分支 feature/v0.7-browse-ux（翻页 / 加载锚点 / 新窗口 / 网页全屏 / 滚动条进度条 / 列表删除拖拽）。已发布 v0.7.0（见 CHANGELOG.md）。
 **
 
 ### 补丁：页码输入跳转 + 新标签返回修复（已实现）
 
+
+- 网页全屏最终实现为 CSS 剧场模式（非 document 全屏），顶栏全屏按钮已移除
+- 窗口过矮时可滚动；封面显示播放量、卡片显示上传日期
+
+## 发布
+
+- [x] v0.7.0 已打 tag、合并回 master 并发布 GitHub Release
