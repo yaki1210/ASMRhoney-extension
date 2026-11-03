@@ -1,11 +1,11 @@
-import { useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { clipInRegion, type LibraryRegion } from "../data/decide";
 import { isPublicClip, sortClips } from "../data/filters";
 import type { ClipListItem, Creator, Lang } from "../data/types";
 import { copy } from "../i18n";
+import { displayPage } from "../data/paging";
 import { ClipGrid } from "./ClipGrid";
-
-const PAGE = 48;
+import { Pager } from "./Pager";
 
 type Props = {
   catalog: ClipListItem[];
@@ -20,7 +20,7 @@ type Props = {
 
 export function Home({ catalog, counts, streamers, lang, region, onRegion, onOpen, onOpenCreator }: Props) {
   const t = copy(lang);
-  const [shown, setShown] = useState(PAGE);
+  const [page, setPage] = useState(1);
   const regions: { id: LibraryRegion; label: string }[] = [
     { id: "all", label: t.regionAll },
     { id: "zh", label: t.regionZh },
@@ -31,7 +31,10 @@ export function Home({ catalog, counts, streamers, lang, region, onRegion, onOpe
     () => sortClips(catalog.filter((clip) => isPublicClip(clip) && clipInRegion(clip, streamers, region)), "new", counts),
     [catalog, counts, streamers, region],
   );
-  const visible = newest.slice(0, shown);
+  useEffect(() => setPage(1), [region]);
+  // Fixed pages counted from the oldest clip; page 1 = newest (merged remainder), shown new→old.
+  const win = displayPage(newest, page);
+  const visible = win.items;
 
   return (
     <div class="page">
@@ -45,11 +48,7 @@ export function Home({ catalog, counts, streamers, lang, region, onRegion, onOpe
       {catalog.length ? (
         <>
           <ClipGrid clips={visible} counts={counts} streamers={streamers} lang={lang} onOpen={onOpen} onOpenCreator={onOpenCreator} />
-          {shown < newest.length && (
-            <button class="more-btn library-more" type="button" onClick={() => setShown((n) => n + PAGE)}>
-              {t.commentsMore}
-            </button>
-          )}
+          <Pager page={win.uiPage} count={win.uiPageCount} lang={lang} onPage={setPage} />
           {!visible.length && <p class="rail-empty">{t.noResults}</p>}
         </>
       ) : (

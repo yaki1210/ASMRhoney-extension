@@ -1,12 +1,13 @@
-import { useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { libraryClipVisible, type LibraryRegion } from "../data/decide";
 import { sortClips, TAG_GROUPS, type TagGroupId } from "../data/filters";
 import type { ClipListItem, Creator, CreatorSort, Lang, Trigger } from "../data/types";
 import { copy } from "../i18n";
 import { fill, triggerLabel } from "../lib";
+import { displayPage } from "../data/paging";
 import { ClipGrid } from "./ClipGrid";
+import { Pager } from "./Pager";
 
-const PAGE = 48;
 const GROUP_COPY: Record<TagGroupId, "groupRating" | "groupSounds" | "groupBody" | "groupScene"> = {
   rating: "groupRating",
   sounds: "groupSounds",
@@ -42,13 +43,15 @@ export function Library({
   const t = copy(lang);
   const [selected, setSelected] = useState<string[]>(presetTags);
   const [sort, setSort] = useState<CreatorSort>("new");
-  const [shown, setShown] = useState(PAGE);
+  const [page, setPage] = useState(1);
   const filtered = useMemo(() => {
     const matched = catalog.filter((clip) => libraryClipVisible(clip, streamers, region, selected));
     return sortClips(matched, sort, counts);
   }, [catalog, selected, sort, counts, streamers, region]);
+  useEffect(() => setPage(1), [region, presetTags.join(",")]);
 
-  const visible = filtered.slice(0, shown);
+  const win = displayPage(filtered, page);
+  const visible = win.items;
   const sorts: { id: CreatorSort; label: string }[] = [
     { id: "new", label: t.sortNew },
     { id: "views", label: t.sortViews },
@@ -56,7 +59,7 @@ export function Library({
   ];
 
   const toggle = (slug: string) => {
-    setShown(PAGE);
+    setPage(1);
     setSelected((cur) => (cur.includes(slug) ? cur.filter((x) => x !== slug) : [...cur, slug]));
   };
 
@@ -83,13 +86,13 @@ export function Library({
         <p class="library-count">{fill(t.resultCount, filtered.length)}</p>
         <div class="sort-row" role="tablist">
           {sorts.map((s) => (
-            <button key={s.id} class={sort === s.id ? "is-on" : ""} type="button" onClick={() => { setSort(s.id); setShown(PAGE); }}>
+            <button key={s.id} class={sort === s.id ? "is-on" : ""} type="button" onClick={() => { setSort(s.id); setPage(1); }}>
               {s.label}
             </button>
           ))}
         </div>
         {selected.length > 0 && (
-          <button class="text-btn" type="button" onClick={() => { setSelected(presetTags); setShown(PAGE); }}>
+          <button class="text-btn" type="button" onClick={() => { setSelected(presetTags); setPage(1); }}>
             {t.clearFilters}
           </button>
         )}
@@ -109,11 +112,7 @@ export function Library({
       ) : (
         <p class="rail-empty">{t.noResults}</p>
       )}
-      {shown < filtered.length && (
-        <button class="more-btn library-more" type="button" onClick={() => setShown((n) => n + PAGE)}>
-          {t.commentsMore}
-        </button>
-      )}
+      <Pager page={win.uiPage} count={win.uiPageCount} lang={lang} onPage={setPage} />
     </div>
   );
 }

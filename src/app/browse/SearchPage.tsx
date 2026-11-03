@@ -1,13 +1,14 @@
-import { useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { selectSearchResults } from "../data/decide";
 import { TAG_GROUPS, type DurFilter, type SearchSort, type TagGroupId, type WhenFilter } from "../data/filters";
 import type { ClipListItem, Creator, Lang, Trigger } from "../data/types";
 import { copy } from "../i18n";
 import { IconFilter } from "../icons";
 import { fill, triggerLabel } from "../lib";
+import { displayPage } from "../data/paging";
 import { ClipGrid } from "./ClipGrid";
+import { Pager } from "./Pager";
 
-const PAGE = 48;
 const GROUP_COPY: Record<TagGroupId, "groupRating" | "groupSounds" | "groupBody" | "groupScene"> = {
   rating: "groupRating",
   sounds: "groupSounds",
@@ -48,11 +49,13 @@ export function SearchPage({
 }: Props) {
   const t = copy(lang);
   const [open, setOpen] = useState(false);
-  const [shown, setShown] = useState(PAGE);
+  const [page, setPage] = useState(1);
   const results = useMemo(
     () => selectSearchResults(catalog, query, streamers, triggers, lang, { tags, dur, when, sort, counts }),
     [catalog, query, streamers, triggers, lang, tags, dur, when, sort, counts],
   );
+  useEffect(() => setPage(1), [query, tags.join(","), dur, when, sort]);
+  const win = displayPage(results, page);
   const active = tags.length + (dur === "any" ? 0 : 1) + (when === "any" ? 0 : 1);
   const durations: { id: DurFilter; label: string }[] = [
     { id: "any", label: t.durAny },
@@ -74,7 +77,7 @@ export function SearchPage({
   ];
 
   const patch = (next: Partial<Pick<Props, "tags" | "dur" | "when" | "sort">>) => {
-    setShown(PAGE);
+    setPage(1);
     onChange({ q: query, tags, dur, when, sort, ...next });
   };
 
@@ -149,18 +152,14 @@ export function SearchPage({
       {results.length ? (
         <>
           <ClipGrid
-            clips={results.slice(0, shown)}
+            clips={win.items}
             counts={counts}
             streamers={streamers}
             lang={lang}
             onOpen={onOpen}
             onOpenCreator={onOpenCreator}
           />
-          {shown < results.length && (
-            <button class="more-btn library-more" type="button" onClick={() => setShown((n) => n + PAGE)}>
-              {t.commentsMore}
-            </button>
-          )}
+          <Pager page={win.uiPage} count={win.uiPageCount} lang={lang} onPage={setPage} />
         </>
       ) : (
         <p class="rail-empty">{catalog.length ? t.searchEmpty : t.loading}</p>
