@@ -3,9 +3,10 @@ import { fetchClip } from "../data/client";
 import { nextPlaylistIndex, orderPlaylist, type PlayOrder } from "../data/decide";
 import type { ClipDetail, ClipListItem, Creator, Lang, Trigger } from "../data/types";
 import { copy } from "../i18n";
-import { IconBack, IconComment } from "../icons";
+import { IconBack, IconClose, IconComment } from "../icons";
 import { coverSrc, displayCreator, displayTitle, formatDuration } from "../lib";
 import { Player } from "../player/Player";
+import { moveItem, useDragReorder } from "./useDragReorder";
 
 type Props = {
   title: string;
@@ -23,6 +24,10 @@ type Props = {
   onBack: () => void;
   onSearch: () => void;
   onTag: (tag: string) => void;
+  /** Called after a row is removed from the queue (e.g. also un-favorite). */
+  onRemoveItem?: (slug: string) => void;
+  /** Called with the new queue order after a drag (only when it should persist). */
+  onReorderItems?: (slugs: string[], order: PlayOrder) => void;
 };
 
 export function PlaylistView({
@@ -41,6 +46,8 @@ export function PlaylistView({
   onBack,
   onSearch,
   onTag,
+  onRemoveItem,
+  onReorderItems,
 }: Props) {
   const t = copy(lang);
   const itemKey = items.map((item) => item.slug).join("\n");
@@ -49,7 +56,10 @@ export function PlaylistView({
   const [started, setStarted] = useState(false);
   const slugRef = useRef<string | null>(null);
   const [index, setIndex] = useState(0);
-  const queue = useMemo(() => orderPlaylist(stableItems, order, order === "shuffle" ? Math.random : () => 0), [stableItems, order, nonce]);
+  const computed = useMemo(() => orderPlaylist(stableItems, order, order === "shuffle" ? Math.random : () => 0), [stableItems, order, nonce]);
+  // Session edits (delete / drag) override the computed queue until order/shuffle changes.
+  const [edited, setEdited] = useState<ClipListItem[] | null>(null);
+  const queue = edited ?? computed;
   const [detail, setDetail] = useState<ClipDetail | null>(null);
   const [detailError, setDetailError] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -58,10 +68,42 @@ export function PlaylistView({
   const current = queue[index];
 
   useEffect(() => {
+    // If the new items are just our own persisted edit (same set), keep playing.
+    if (edited) {
+      const now = new Set(items.map((item) => item.slug));
+      if (now.size === edited.length && edited.every((clip) => now.has(clip.slug))) return;
+    }
+    setEdited(null);
     setStarted(false);
     slugRef.current = null;
     setIndex(0);
   }, [itemKey]);
+
+  useEffect(() => setEdited(null), [order, nonce]);
+
+  const removeAt = (at: number) => {
+    const clip = queue[at];
+    if (!clip) return;
+    const next = queue.filter((_, i) => i !== at);
+    let nextIndex = index;
+    if (at < index) nextIndex = index - 1;
+    else if (at === index) nextIndex = Math.min(index, next.length - 1);
+    nextIndex = Math.max(0, nextIndex);
+    slugRef.current = next[nextIndex]?.slug ?? null;
+    if (!next.length) setStarted(false);
+    setEdited(next);
+    setIndex(nextIndex);
+    onRemoveItem?.(clip.slug);
+  };
+
+  const moveRow = (from: number, to: number) => {
+    const next = moveItem(queue, from, to);
+    // Keep the playing item playing; its index follows it.
+    if (queue[index]) slugRef.current = queue[index].slug;
+    setEdited(next);
+    onReorderItems?.(next.map((clip) => clip.slug), order);
+  };
+  const drag = useDragReorder(moveRow, queue.length > 1);
 
   useEffect(() => {
     const slug = slugRef.current;
@@ -194,10 +236,11 @@ export function PlaylistView({
           </div>
           <ol class="playlist-list">
             {queue.map((clip, i) => (
-              <li key={clip.slug}>
-                <button class={`playlist-item ${i === index && started ? "is-on" : ""}`} type="button" onClick={() => choose(i)}>
+              <li key={clip.slug} class={`playlist-row ${drag.rowClass(i)}`} {...drag.itemProps(i)}>
+                <span class="drag-handle" title={t.dragToReorder} aria-hidden="true">⋮⋮</span>
+                <button draggable={false} class={`playlist-item ${i === index && started ? "is-on" : ""}`} type="button" onClick={() => choose(i)}>
                   <em>{i + 1}</em>
-                  {coverSrc(clip) ? <img src={coverSrc(clip)} alt="" /> : <span class="search-fallback" />}
+                  {coverSrc(clip) ? <img src={coverSrc(clip)} alt="" draggable={false} /> : <span class="search-fallback" />}
                   <span>
                     <b>{displayTitle(clip, lang)}</b>
                     <i>
@@ -205,6 +248,18 @@ export function PlaylistView({
                       {i === index && started ? ` · ${t.playlistNow}` : ""}
                     </i>
                   </span>
+                </button>
+                <button
+                  class="row-remove"
+                  type="button"
+                  title={t.removeFromList}
+                  aria-label={t.removeFromList}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeAt(i);
+                  }}
+                >
+                  <IconClose />
                 </button>
               </li>
             ))}

@@ -117,6 +117,8 @@ export function listRecentProgress(limit = 8): RecentProgress[] {
 const FAV_KEY = "ahx.favorites";
 const FAV_TYPE = "asmrhoney.favorites";
 const FAV_VERSION = 1;
+/** Set once the array order in FAV_KEY is the user's explicit order (v0.7+). Before that, order = savedAt desc. */
+const FAV_ORDERED_KEY = "ahx.favorites.ordered";
 const SLUG_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,119}$/;
 
 export type Favorite = { slug: string; savedAt: number };
@@ -126,6 +128,8 @@ export type FavoritesFile = {
   version: typeof FAV_VERSION;
   exportedAt: string;
   items: Favorite[];
+  /** v0.7+: items are in the user's explicit order. Absent in older files → sort by savedAt desc. */
+  ordered?: true;
 };
 
 export type FavoriteImport =
@@ -163,7 +167,7 @@ function readFavorites(): Favorite[] {
       seen.add(fav.slug);
       out.push(fav);
     }
-    out.sort((a, b) => b.savedAt - a.savedAt);
+    if (localStorage.getItem(FAV_ORDERED_KEY) !== "1") out.sort((a, b) => b.savedAt - a.savedAt);
     return out;
   } catch {
     return [];
@@ -173,6 +177,7 @@ function readFavorites(): Favorite[] {
 function writeFavorites(items: Favorite[]) {
   try {
     localStorage.setItem(FAV_KEY, JSON.stringify(items));
+    localStorage.setItem(FAV_ORDERED_KEY, "1");
   } catch {
     /* quota */
   }
@@ -203,12 +208,30 @@ export function removeFavorite(slug: string) {
   writeFavorites(readFavorites().filter((item) => item.slug !== slug));
 }
 
+/** Persist a new explicit order. Slugs not listed keep their relative order at the end. */
+export function reorderFavorites(slugs: string[]) {
+  const cur = readFavorites();
+  const by = new Map(cur.map((item) => [item.slug, item]));
+  const next: Favorite[] = [];
+  for (const slug of slugs) {
+    const item = by.get(slug);
+    if (item) {
+      next.push(item);
+      by.delete(slug);
+    }
+  }
+  for (const item of cur) if (by.has(item.slug)) next.push(item);
+  writeFavorites(next);
+  return next;
+}
+
 export function favoritesDocument(): FavoritesFile {
   return {
     type: FAV_TYPE,
     version: FAV_VERSION,
     exportedAt: new Date().toISOString(),
     items: readFavorites(),
+    ordered: true,
   };
 }
 
@@ -229,6 +252,7 @@ export function importFavorites(text: string): FavoriteImport {
   }
   const rows = rowsFromFile(data);
   if (!rows) return { ok: false };
+  const fileOrdered = !Array.isArray(data) && (data as { ordered?: unknown }).ordered === true;
   const incoming: Favorite[] = [];
   const seen = new Set<string>();
   rows.forEach((item, index) => {
@@ -238,6 +262,7 @@ export function importFavorites(text: string): FavoriteImport {
     incoming.push(fav);
   });
   if (rows.length > 0 && incoming.length === 0) return { ok: false };
+  if (!fileOrdered) incoming.sort((a, b) => b.savedAt - a.savedAt);
 
   const local = readFavorites();
   const have = new Set(local.map((item) => item.slug));
@@ -253,7 +278,7 @@ export function importFavorites(text: string): FavoriteImport {
     next.push(item);
     added += 1;
   }
-  next.sort((a, b) => b.savedAt - a.savedAt);
+  // Keep local explicit order; new items are appended in file order.
   writeFavorites(next);
   return { ok: true, added, skipped };
 }

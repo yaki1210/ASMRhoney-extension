@@ -2,6 +2,7 @@ import type { ClipListItem, Creator, Lang } from "../data/types";
 import { copy } from "../i18n";
 import { IconHeart, IconViews } from "../icons";
 import { toPath } from "../data/routes";
+import { useDragReorder } from "./useDragReorder";
 import { coverSrc, displayCreator, displayTitle, formatCount, formatDuration } from "../lib";
 
 type Props = {
@@ -15,13 +16,16 @@ type Props = {
   onRemove?: (slug: string) => void;
   /** "blank" opens clips in a new tab via real links; "same" keeps SPA navigation. */
   openMode?: "same" | "blank";
+  /** Enables drag-and-drop reordering of cards. */
+  onReorder?: (from: number, to: number) => void;
 };
 
-export function ClipGrid({ clips, currentSlug, counts, streamers, lang, onOpen, onOpenCreator, onRemove, openMode = "same" }: Props) {
+export function ClipGrid({ clips, currentSlug, counts, streamers, lang, onOpen, onOpenCreator, onRemove, openMode = "same", onReorder }: Props) {
   const t = copy(lang);
+  const drag = useDragReorder((from, to) => onReorder?.(from, to), !!onReorder);
   return (
-    <div class="clip-grid">
-      {clips.map((item) => {
+    <div class={`clip-grid ${onReorder ? "is-sortable" : ""}`}>
+      {clips.map((item, i) => {
         const views = counts[item.slug] ?? item.playCount ?? 0;
         const src = coverSrc(item);
         const href = toPath({ kind: "clip", slug: item.slug }, lang);
@@ -39,14 +43,16 @@ export function ClipGrid({ clips, currentSlug, counts, streamers, lang, onOpen, 
         return (
           <article
             key={item.slug}
-            class={`clip-card ${item.slug === currentSlug ? "is-on" : ""}`}
+            class={`clip-card ${item.slug === currentSlug ? "is-on" : ""} ${drag.rowClass(i)}`}
+            {...drag.itemProps(i)}
+            title={onReorder ? t.dragToReorder : undefined}
             onClick={() => {
               if (blank) window.open(href, "_blank", "noopener,noreferrer");
               else onOpen(item.slug);
             }}
           >
             <span class="clip-thumb">
-              <a class="clip-thumb-link" {...linkProps} tabIndex={-1} aria-hidden="true">
+              <a class="clip-thumb-link" {...linkProps} draggable={onReorder ? false : undefined} tabIndex={-1} aria-hidden="true">
               {src ? (
                 <img
                   key={src}
@@ -75,7 +81,7 @@ export function ClipGrid({ clips, currentSlug, counts, streamers, lang, onOpen, 
               )}
             </span>
             <span class="clip-copy">
-              <a class="clip-title" {...linkProps}>
+              <a class="clip-title" {...linkProps} draggable={onReorder ? false : undefined}>
                 <b>{displayTitle(item, lang)}</b>
               </a>
               <span class="clip-meta">

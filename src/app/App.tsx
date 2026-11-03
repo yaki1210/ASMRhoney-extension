@@ -22,7 +22,7 @@ import {
 } from "./data/client";
 import { collectionCreator, collectionHead, collectionMembers, galleryUrls, hasListedMembers } from "./data/decide";
 import { CATEGORIES, categoryTitle, libraryRouteForTag, parseRoute, toPath, type Route } from "./data/routes";
-import { listFavorites } from "./data/storage";
+import { listFavorites, removeFavorite, reorderFavorites } from "./data/storage";
 import type { AudioAlbum, AudioTrack, CatalogStatus, ClipDetail, ClipListItem, Creator, Trigger } from "./data/types";
 import { copy } from "./i18n";
 import { displayCreator, displayTitle } from "./lib";
@@ -360,6 +360,12 @@ export function App() {
         catalog={catalog}
         emptyLabel={t.favoritesEmpty}
         onOrder={(order) => go({ kind: "playlist", order }, true)}
+        onRemoveItem={removeFavorite}
+        onReorderItems={(slugs, order) => {
+          // Favorites order is "asc"; desc is its reverse; shuffle is a session-only order.
+          if (order === "asc") reorderFavorites(slugs);
+          else if (order === "desc") reorderFavorites(slugs.slice().reverse());
+        }}
         onHome={openHome}
         onBack={goBack}
         onSearch={() => setSearchOpen(true)}

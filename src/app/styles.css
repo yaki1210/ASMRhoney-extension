@@ -1987,3 +1987,19 @@ html, .side, .rail, .search-body, .rail-list, .playlist-list {
   background: radial-gradient(circle at 35% 35%, #fff, var(--cream) 60%);
   box-shadow: 0 0 0 3px oklch(0.82 0.14 78 / 0.3), 0 2px 6px rgba(0,0,0,0.5);
 }
+
+/* v0.7: list delete + drag reorder */
+.clip-grid.is-sortable .clip-card { cursor: grab; }
+.clip-card.is-dragging, .playlist-row.is-dragging { opacity: 0.4; }
+.clip-card.drop-before { box-shadow: -3px 0 0 var(--gold); border-radius: 12px; }
+.clip-card.drop-after { box-shadow: 3px 0 0 var(--gold); border-radius: 12px; }
+.playlist-row { position: relative; display: grid; grid-template-columns: 16px minmax(0, 1fr) 28px; align-items: center; gap: 2px; border-radius: 10px; }
+.playlist-row.drop-before { box-shadow: 0 -2px 0 var(--gold); }
+.playlist-row.drop-after { box-shadow: 0 2px 0 var(--gold); }
+.drag-handle { color: var(--dim); font-size: 11px; letter-spacing: -3px; cursor: grab; user-select: none; text-align: center; opacity: 0.5; }
+.playlist-row:hover .drag-handle { opacity: 1; color: var(--gold); }
+.row-remove { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; opacity: 0; transition: opacity 0.15s, background 0.15s; }
+.row-remove svg { width: 14px; height: 14px; }
+.playlist-row:hover .row-remove, .row-remove:focus-visible { opacity: 1; }
+.row-remove:hover { background: rgba(255,255,255,0.08); color: var(--gold); }
+@media (hover: none) { .row-remove, .drag-handle { opacity: 1; } }

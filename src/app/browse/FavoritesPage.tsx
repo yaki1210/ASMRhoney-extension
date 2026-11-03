@@ -4,11 +4,13 @@ import {
   importFavorites,
   listFavorites,
   removeFavorite,
+  reorderFavorites,
   type Favorite,
 } from "../data/storage";
 import type { ClipListItem, Creator, Lang } from "../data/types";
 import { copy } from "../i18n";
 import { ClipGrid } from "./ClipGrid";
+import { moveItem } from "./useDragReorder";
 
 type Props = {
   catalog: ClipListItem[];
@@ -72,6 +74,11 @@ export function FavoritesPage({ catalog, counts, streamers, lang, onOpen, onOpen
     setStatus(bits.join(lang === "en" ? ", " : "，") || t.favImportEmpty);
   };
 
+  const onReorder = (from: number, to: number) => {
+    // Indices are within the visible (catalog-matched) clips; unmatched favorites keep their place at the end.
+    setItems(reorderFavorites(moveItem(clips, from, to).map((clip) => clip.slug)));
+  };
+
   const onRemove = (slug: string) => {
     removeFavorite(slug);
     reload();
@@ -82,6 +89,7 @@ export function FavoritesPage({ catalog, counts, streamers, lang, onOpen, onOpen
       <section class="hero-block">
         <h1 class="home-title">{t.favorites}</h1>
         <p class="home-sub">{t.favHint}</p>
+        {clips.length > 1 && <p class="fav-status">{t.favReorderHint}</p>}
         <div class="fav-actions">
           <button class="more-btn" type="button" onClick={onPlayAll} disabled={!clips.length}>
             {t.playAll}
@@ -116,6 +124,7 @@ export function FavoritesPage({ catalog, counts, streamers, lang, onOpen, onOpen
               onOpen={onOpen}
               onOpenCreator={onOpenCreator}
               onRemove={onRemove}
+              onReorder={onReorder}
             />
           )}
           {missing.length > 0 && (
