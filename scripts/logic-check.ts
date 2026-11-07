@@ -14,7 +14,7 @@ import {
   selectSearchResults,
   videoTapAction,
 } from "../src/app/data/decide";
-import { followFeed, unseenFollowCount } from "../src/app/data/follows";
+import { followFeed, followTimeline, unseenFollowCount } from "../src/app/data/follows";
 import { parseRoute, toPath } from "../src/app/data/routes";
 import { searchClips } from "../src/app/data/search";
 import type { AudioTrack, ClipListItem, Creator } from "../src/app/data/types";
@@ -174,6 +174,24 @@ const followClips = [
 ];
 const followList = [{ slug: "soly", followedAt }];
 eq(followFeed(followClips, followList).map((item) => item.slug), ["new", "old"], "follow feed is public clips, newest first");
+eq(
+  followTimeline(
+    followClips,
+    [
+      { slug: "rain", title: "rain", creator: "soly", duration: 30, publishedAt: "2026-07-03T00:00:00Z", audioUrl: "https://example.test/a.mp3" },
+      { slug: "nope", title: "nope", creator: "mei", duration: 30, publishedAt: "2026-09-01T00:00:00Z", audioUrl: "https://example.test/b.mp3" },
+      { slug: "draft", title: "draft", creator: "soly", duration: 30, publishedAt: "2026-09-02T00:00:00Z", audioUrl: "https://example.test/c.mp3", status: "draft" },
+    ],
+    followList,
+  ).map((item) => `${item.kind}:${item.slug}`),
+  ["audio:rain", "video:new", "video:old"],
+  "follow timeline mixes public videos and audio, newest first",
+);
+eq(
+  followTimeline(followClips, [], followList, "soly").map((item) => item.slug),
+  ["new", "old"],
+  "follow timeline can stay on one creator",
+);
 eq(unseenFollowCount(followClips, followList, null), 1, "unseen ignores clips from before the follow");
 eq(unseenFollowCount(followClips, followList, Date.parse("2026-07-15T00:00:00Z")), 0, "opening following clears clips already published");
 eq(toPath({ kind: "library", id: "adult-asmr", tags: ["nsfw", "whisper"], region: "zh" }, "zh"), "/adult-asmr/?region=zh&tag=whisper", "library path keeps region and extra tags");

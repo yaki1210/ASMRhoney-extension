@@ -40,9 +40,9 @@ export function parseTimestamp(label: string): number | null {
   return null;
 }
 
-export function displayTitle(clip: ClipListItem, lang: Lang) {
-  if (lang === "en" && clip.title_en) return clip.title_en;
-  return clip.title;
+export function displayTitle(item: { title: string; title_en?: string }, lang: Lang) {
+  if (lang === "en" && item.title_en) return item.title_en;
+  return item.title;
 }
 
 function prettyName(name: string) {

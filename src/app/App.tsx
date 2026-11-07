@@ -156,7 +156,11 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const want = route.kind === "audio" || route.kind === "audio-album" || route.kind === "audio-creator";
+    const want =
+      route.kind === "audio" ||
+      route.kind === "audio-album" ||
+      route.kind === "audio-creator" ||
+      route.kind === "following";
     if (!want || audioLoaded.current) return;
     audioLoaded.current = true;
     void fetchAudio()
@@ -371,9 +375,14 @@ export function App() {
         status={catalogStatus}
         counts={counts}
         streamers={streamerMap}
+        triggers={triggerMap}
+        tracks={audio.tracks}
+        albums={audio.albums}
         lang={lang}
-        onOpen={openClip}
         onOpenCreator={openCreator}
+        onOpenAudio={(track) =>
+          go(track.albumSlug ? { kind: "audio-album", slug: track.albumSlug } : { kind: "audio-creator", slug: track.creator })
+        }
       />,
     );
   } else if (route.kind === "favorites") {
