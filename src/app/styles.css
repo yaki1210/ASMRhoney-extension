@@ -1562,8 +1562,24 @@ button.follow-thumb {
     overflow-x: auto;
     padding-bottom: 4px;
   }
-  .follow-side-row { flex: none; width: 360px; max-width: 86vw; }
-  .follow-entry { grid-template-columns: 200px minmax(0, 1fr); gap: 10px; padding: 10px; }
+  .follow-side { gap: 4px; }
+  .follow-side-row { flex: none; width: 76px; max-width: none; grid-template-columns: 1fr; }
+  .follow-side-row .follow-btn { display: none; }
+  .follow-side-btn {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 6px;
+    padding: 6px 4px;
+    text-align: center;
+  }
+  .follow-face { width: 56px; height: 56px; font-size: 20px; }
+  .follow-side-copy { justify-items: center; width: 100%; }
+  .follow-side-copy b { width: 100%; font-size: 12px; text-align: center; }
+  .follow-side-spec,
+  .follow-side-bio,
+  .follow-side-meta { display: none; }
+  .follow-entry { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 10px; }
+  .follow-entry .follow-thumb { width: 100%; }
   .clip-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .meta { padding: 14px 16px 20px; }
   .meta h1 { font-size: 17px; }
