@@ -282,3 +282,184 @@ export function importFavorites(text: string): FavoriteImport {
   writeFavorites(next);
   return { ok: true, added, skipped };
 }
+
+const FOLLOW_KEY = "ahx.follows";
+const FOLLOW_SEEN_KEY = "ahx.follows.seenAt";
+const FOLLOW_TYPE = "asmrhoney.follows";
+const FOLLOW_VERSION = 1;
+
+export type Follow = { slug: string; followedAt: number };
+
+export type FollowsFile = {
+  type: typeof FOLLOW_TYPE;
+  version: typeof FOLLOW_VERSION;
+  exportedAt: string;
+  items: Follow[];
+};
+
+const followListeners = new Set<() => void>();
+
+function emitFollows() {
+  for (const fn of followListeners) fn();
+}
+
+export function subscribeFollows(fn: () => void) {
+  followListeners.add(fn);
+  return () => {
+    followListeners.delete(fn);
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key === FOLLOW_KEY || event.key === FOLLOW_SEEN_KEY) emitFollows();
+  });
+}
+
+function followFrom(item: unknown, fallbackAt: number): Follow | null {
+  if (typeof item === "string") {
+    return SLUG_RE.test(item) ? { slug: item, followedAt: fallbackAt } : null;
+  }
+  if (!item || typeof item !== "object") return null;
+  const slug = (item as { slug?: unknown }).slug;
+  if (typeof slug !== "string" || !SLUG_RE.test(slug)) return null;
+  const rawAt = (item as { followedAt?: unknown }).followedAt;
+  let followedAt = fallbackAt;
+  if (typeof rawAt === "number" && Number.isFinite(rawAt) && rawAt >= 0 && rawAt < 1e14) followedAt = rawAt;
+  else if (typeof rawAt === "string") {
+    const parsed = Date.parse(rawAt);
+    if (Number.isFinite(parsed) && parsed >= 0) followedAt = parsed;
+  }
+  return { slug, followedAt };
+}
+
+function readFollows(): Follow[] {
+  try {
+    const raw = localStorage.getItem(FOLLOW_KEY);
+    if (!raw) return [];
+    const data = JSON.parse(raw) as unknown;
+    if (!Array.isArray(data)) return [];
+    const out: Follow[] = [];
+    const seen = new Set<string>();
+    for (const item of data) {
+      const follow = followFrom(item, 0);
+      if (!follow || seen.has(follow.slug)) continue;
+      seen.add(follow.slug);
+      out.push(follow);
+    }
+    out.sort((a, b) => b.followedAt - a.followedAt);
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+function writeFollows(items: Follow[]) {
+  try {
+    localStorage.setItem(FOLLOW_KEY, JSON.stringify(items));
+  } catch {
+    /* quota */
+  }
+  emitFollows();
+}
+
+export function listFollows(): Follow[] {
+  return readFollows();
+}
+
+export function isFollowed(slug: string) {
+  return readFollows().some((item) => item.slug === slug);
+}
+
+export function toggleFollow(slug: string) {
+  if (!SLUG_RE.test(slug)) return false;
+  const cur = readFollows();
+  const idx = cur.findIndex((item) => item.slug === slug);
+  if (idx >= 0) {
+    cur.splice(idx, 1);
+    writeFollows(cur);
+    return false;
+  }
+  cur.unshift({ slug, followedAt: Date.now() });
+  writeFollows(cur);
+  return true;
+}
+
+export function loadFollowsSeenAt(): number | null {
+  try {
+    const raw = localStorage.getItem(FOLLOW_SEEN_KEY);
+    if (!raw) return null;
+    const at = Number(raw);
+    if (!Number.isFinite(at) || at < 0) return null;
+    return at;
+  } catch {
+    return null;
+  }
+}
+
+/** Remember that the following page has been opened. Clips published before this are not "new". */
+export function markFollowsSeen(at = Date.now()) {
+  try {
+    localStorage.setItem(FOLLOW_SEEN_KEY, String(at));
+  } catch {
+    /* quota */
+  }
+  emitFollows();
+}
+
+export function followsDocument(): FollowsFile {
+  return {
+    type: FOLLOW_TYPE,
+    version: FOLLOW_VERSION,
+    exportedAt: new Date().toISOString(),
+    items: readFollows(),
+  };
+}
+
+function followRows(data: unknown): unknown[] | null {
+  if (Array.isArray(data)) return data;
+  if (!data || typeof data !== "object") return null;
+  const rec = data as { type?: unknown; version?: unknown; items?: unknown };
+  if (rec.type !== FOLLOW_TYPE || rec.version !== FOLLOW_VERSION || !Array.isArray(rec.items)) return null;
+  return rec.items;
+}
+
+export function importFollows(text: string): FavoriteImport {
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return { ok: false };
+  }
+  const rows = followRows(data);
+  if (!rows) return { ok: false };
+  const incoming: Follow[] = [];
+  const seen = new Set<string>();
+  rows.forEach((item, index) => {
+    const follow = followFrom(item, Date.now() - index);
+    if (!follow || seen.has(follow.slug)) return;
+    seen.add(follow.slug);
+    incoming.push(follow);
+  });
+  if (rows.length > 0 && incoming.length === 0) return { ok: false };
+
+  const local = readFollows();
+  const have = new Set(local.map((item) => item.slug));
+  let added = 0;
+  let skipped = 0;
+  const next = [...local];
+  for (const item of incoming) {
+    if (have.has(item.slug)) {
+      skipped += 1;
+      continue;
+    }
+    have.add(item.slug);
+    next.push(item);
+    added += 1;
+  }
+  next.sort((a, b) => b.followedAt - a.followedAt);
+  writeFollows(next);
+  // Imported history is already "seen"; only uploads after this import light the sidebar.
+  markFollowsSeen(Date.now());
+  return { ok: true, added, skipped };
+}

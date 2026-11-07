@@ -9,6 +9,7 @@ export type Route =
   | { kind: "creator"; slug: string }
   | { kind: "library"; id: string; tags: string[]; region?: LibraryRegion }
   | { kind: "history" }
+  | { kind: "following" }
   | { kind: "favorites" }
   | { kind: "playlist"; order: PlayOrder }
   | { kind: "search"; q: string; tags: string[]; dur: DurFilter; when: WhenFilter; sort: SearchSort }
@@ -115,6 +116,7 @@ export function parseRoute(pathname = location.pathname, search = location.searc
   if (clip) return { lang, route: { kind: "clip", slug: decodeURIComponent(clip[1]) } };
 
   if (path === "/history") return { lang, route: { kind: "history" } };
+  if (path === "/following") return { lang, route: { kind: "following" } };
   if (path === "/favorites/play") return { lang, route: { kind: "playlist", order: playOrder(search) } };
   if (path === "/favorites") return { lang, route: { kind: "favorites" } };
 
@@ -144,6 +146,8 @@ export function toPath(route: Route, lang: Lang) {
       return `${prefix}/creators/`;
     case "history":
       return `${prefix}/history/`;
+    case "following":
+      return `${prefix}/following/`;
     case "favorites":
       return `${prefix}/favorites/`;
     case "playlist":

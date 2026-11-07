@@ -60,7 +60,14 @@ export type Creator = {
   region?: string;
   creatorGroup?: string;
   avatarUrl?: string;
+  avatarWebpUrl?: string;
+  avatarAvifUrl?: string;
   coverUrl?: string;
+  posterUrl?: string;
+  posterWebpUrl?: string;
+  posterAvifUrl?: string;
+  profileSourceUrl?: string;
+  profileSourcePlatform?: string;
 };
 
 export type Trigger = {

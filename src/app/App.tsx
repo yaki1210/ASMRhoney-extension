@@ -4,6 +4,7 @@ import { AudioPage } from "./browse/AudioPage";
 import { CreatorPage } from "./browse/CreatorPage";
 import { CreatorsPage } from "./browse/CreatorsPage";
 import { FavoritesPage } from "./browse/FavoritesPage";
+import { FollowingPage } from "./browse/FollowingPage";
 import { GalleryPage } from "./browse/GalleryPage";
 import { HistoryPage } from "./browse/HistoryPage";
 import { Home } from "./browse/Home";
@@ -21,8 +22,9 @@ import {
   fetchTriggers,
 } from "./data/client";
 import { collectionCreator, collectionHead, collectionMembers, galleryUrls, hasListedMembers } from "./data/decide";
+import { unseenFollowCount } from "./data/follows";
 import { CATEGORIES, categoryTitle, libraryRouteForTag, parseRoute, toPath, type Route } from "./data/routes";
-import { listFavorites, removeFavorite, reorderFavorites } from "./data/storage";
+import { listFavorites, listFollows, loadFollowsSeenAt, markFollowsSeen, removeFavorite, reorderFavorites, subscribeFollows } from "./data/storage";
 import type { AudioAlbum, AudioTrack, CatalogStatus, ClipDetail, ClipListItem, Creator, Trigger } from "./data/types";
 import { copy } from "./i18n";
 import { displayCreator, displayTitle } from "./lib";
@@ -71,9 +73,14 @@ export function App() {
   const [navOpen, setNavOpen] = useState(false);
   const [sideCollapsed, setSideCollapsed] = useState(false);
   const [narrow, setNarrow] = useState(() => window.matchMedia("(max-width: 720px)").matches);
+  const [followTick, setFollowTick] = useState(0);
   const t = copy(lang);
   const streamerMap = useMemo(() => new Map(streamers.map((s) => [s.slug, s])), [streamers]);
   const triggerMap = useMemo(() => new Map(triggers.map((x) => [x.slug, x])), [triggers]);
+  const followBadge = useMemo(() => {
+    if (route.kind === "following") return 0;
+    return unseenFollowCount(catalog, listFollows(), loadFollowsSeenAt());
+  }, [route.kind, catalog, followTick]);
 
   const go = useCallback(
     (next: Route, replace = false) => {
@@ -93,6 +100,13 @@ export function App() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  useEffect(() => subscribeFollows(() => setFollowTick((n) => n + 1)), []);
+
+  useEffect(() => {
+    if (route.kind !== "following" || !catalogFull) return;
+    markFollowsSeen(Date.now());
+  }, [route.kind, catalogFull]);
 
   useEffect(() => {
     setNavOpen(false);
@@ -215,11 +229,12 @@ export function App() {
     else if (route.kind === "library") document.title = `${categoryTitle(route.id, lang)} · ASMRHoney`;
     else if (route.kind === "creator") document.title = `${displayCreator(route.slug, streamerMap)} · ASMRHoney`;
     else if (route.kind === "history") document.title = `${t.history} · ASMRHoney`;
+    else if (route.kind === "following") document.title = `${t.following} · ASMRHoney`;
     else if (route.kind === "favorites" || route.kind === "playlist") document.title = `${t.favorites} · ASMRHoney`;
     else if (route.kind === "search") document.title = `${route.q || t.searchClips} · ASMRHoney`;
     else if (route.kind === "collection") document.title = `${t.collection} · ASMRHoney`;
     else if (route.kind === "audio" || route.kind === "audio-album" || route.kind === "audio-creator") document.title = `${t.audioTitle} · ASMRHoney`;
-  }, [route, lang, t.creators, t.history, t.favorites, t.searchClips, t.collection, t.audioTitle, streamerMap]);
+  }, [route, lang, t.creators, t.history, t.following, t.favorites, t.searchClips, t.collection, t.audioTitle, streamerMap]);
 
   const openClip = (slug: string) => {
     if (collectionCreator(slug)) {
@@ -247,6 +262,7 @@ export function App() {
   const sideActive = (current: Route): SideId | null => {
     if (current.kind === "library") return "library";
     if (current.kind === "creators" || current.kind === "creator") return "creators";
+    if (current.kind === "following") return "following";
     if (current.kind === "audio" || current.kind === "audio-album" || current.kind === "audio-creator") return "audio";
     if (current.kind === "history") return "history";
     if (current.kind === "favorites" || current.kind === "playlist") return "favorites";
@@ -273,6 +289,8 @@ export function App() {
         onHome={openHome}
         onLibrary={() => openCategory("asmr")}
         onCreators={() => go({ kind: "creators" })}
+        onFollowing={() => go({ kind: "following" })}
+        followBadge={followBadge}
         onAudio={() => go({ kind: "audio" })}
         onHistory={() => go({ kind: "history" })}
         onFavorites={() => go({ kind: "favorites" })}
@@ -325,13 +343,32 @@ export function App() {
     }
   } else if (route.kind === "creators") {
     page = browseChrome(
-      <CreatorsPage people={streamers} catalog={catalog} lang={lang} onOpen={(slug) => go({ kind: "creator", slug })} />,
+      <CreatorsPage
+        people={streamers}
+        catalog={catalog}
+        triggers={triggerMap}
+        lang={lang}
+        onOpen={(slug) => go({ kind: "creator", slug })}
+      />,
     );
   } else if (route.kind === "creator") {
     page = browseChrome(
       <CreatorPage
         slug={route.slug}
         catalog={catalog}
+        counts={counts}
+        streamers={streamerMap}
+        triggers={triggerMap}
+        lang={lang}
+        onOpen={openClip}
+        onOpenCreator={openCreator}
+      />,
+    );
+  } else if (route.kind === "following") {
+    page = browseChrome(
+      <FollowingPage
+        catalog={catalog}
+        status={catalogStatus}
         counts={counts}
         streamers={streamerMap}
         lang={lang}

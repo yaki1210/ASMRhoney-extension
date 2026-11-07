@@ -14,6 +14,7 @@ import {
   selectSearchResults,
   videoTapAction,
 } from "../src/app/data/decide";
+import { followFeed, unseenFollowCount } from "../src/app/data/follows";
 import { parseRoute, toPath } from "../src/app/data/routes";
 import { searchClips } from "../src/app/data/search";
 import type { AudioTrack, ClipListItem, Creator } from "../src/app/data/types";
@@ -159,6 +160,22 @@ eq(libraryClipVisible(clips[0], regionMap, "zh", ["whisper"]), true, "library ke
 eq(libraryClipVisible(clips[0], regionMap, "jp-kr", ["whisper"]), false, "library region drops a clip before the tag filter");
 eq(libraryClipVisible(clips[0], regionMap, "zh", ["nsfw"]), false, "library tag filter still applies inside a region");
 eq(parseRoute("/asmr/", "?region=jp-kr").route, { kind: "library", id: "asmr", tags: [], region: "jp-kr" }, "library url keeps the region");
+eq(parseRoute("/following/", "").route, { kind: "following" }, "following path");
+eq(parseRoute("/en/following", "").lang, "en", "english following keeps lang");
+eq(toPath({ kind: "following" }, "zh"), "/following/", "following url");
+eq(toPath({ kind: "following" }, "en"), "/en/following/", "english following url");
+const followedAt = Date.parse("2026-06-01T00:00:00Z");
+const followClips = [
+  clip({ slug: "old", title: "old", creator: "soly", publishedAt: "2026-05-01T00:00:00Z" }),
+  clip({ slug: "new", title: "new", creator: "soly", publishedAt: "2026-07-01T00:00:00Z" }),
+  clip({ slug: "other", title: "other", creator: "mei", publishedAt: "2026-07-02T00:00:00Z" }),
+  clip({ slug: "set", title: "set", creator: "soly", kind: "collection", publishedAt: "2026-08-01T00:00:00Z" }),
+  clip({ slug: "hidden", title: "hidden", creator: "soly", hideFromLibrary: true, publishedAt: "2026-08-02T00:00:00Z" }),
+];
+const followList = [{ slug: "soly", followedAt }];
+eq(followFeed(followClips, followList).map((item) => item.slug), ["new", "old"], "follow feed is public clips, newest first");
+eq(unseenFollowCount(followClips, followList, null), 1, "unseen ignores clips from before the follow");
+eq(unseenFollowCount(followClips, followList, Date.parse("2026-07-15T00:00:00Z")), 0, "opening following clears clips already published");
 eq(toPath({ kind: "library", id: "adult-asmr", tags: ["nsfw", "whisper"], region: "zh" }, "zh"), "/adult-asmr/?region=zh&tag=whisper", "library path keeps region and extra tags");
 eq(audioGroupOf(person({ slug: "wan", language: ["zh"] })), "zh", "chinese audio group");
 eq(audioGroupOf(person({ slug: "sel", region: "jp-kr", language: ["ko"] })), "ja", "korean audio sits with japanese");

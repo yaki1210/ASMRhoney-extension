@@ -5,6 +5,7 @@ import type { AudioAlbum, AudioTrack, Creator, Lang } from "../data/types";
 import { copy } from "../i18n";
 import { IconBack, IconMoon, IconMute, IconPause, IconPlay, IconSkipBack, IconSkipFwd, IconVolume } from "../icons";
 import { creatorCover, displayCreator, fill, formatDuration } from "../lib";
+import { FollowButton } from "./FollowButton";
 
 type View = { kind: "audio" } | { kind: "audio-album"; slug: string } | { kind: "audio-creator"; slug: string };
 
@@ -227,6 +228,9 @@ export function AudioPage({ view, albums, tracks, streamers, lang, onOpenCreator
           playLabel={t.playAll}
           onPlay={queued.length ? () => begin(queued, 0) : undefined}
         />
+        <div class="follow-row">
+          <FollowButton slug={slug} lang={lang} />
+        </div>
         {mineAlbums.length > 0 && (
           <>
             <h2>{t.audioAlbums}</h2>

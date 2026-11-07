@@ -53,6 +53,10 @@ export function IconHeart({ filled, ...p }: P & { filled?: boolean }) {
 }
 export const IconUsers = (p: P) =>
   svg("M8 11a3.2 3.2 0 100-6.4A3.2 3.2 0 008 11zm8.2-1.2a2.6 2.6 0 10-2.2-2.6M3.8 19v-1.4A3.6 3.6 0 017.4 14h1.2A3.6 3.6 0 0112.2 17.6V19m4.2-5h.8a3.2 3.2 0 013.2 3.2V19", p);
+export const IconFollow = (p: P) =>
+  svg("M8 11a3.2 3.2 0 100-6.4A3.2 3.2 0 008 11zM3.6 19v-1.2A3.4 3.4 0 017 14.4h2.2A3.4 3.4 0 0112.6 17.8V19M17 8v6M14 11h6", p);
+export const IconPlus = (p: P) => svg("M12 5v14M5 12h14", p);
+export const IconCheck = (p: P) => svg("M5 12.5l4.5 4.5L19 7.5", p);
 export const IconViews = (p: P) => (
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...p}>
     <path d="M8 6.2v11.6L18.5 12 8 6.2z" />

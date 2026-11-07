@@ -3,6 +3,7 @@ import { fetchComments } from "../data/client";
 import { isFavorite, toggleFavorite } from "../data/storage";
 import type { ClipDetail, ClipListItem, Comment, Creator, DrawerLayer, Lang, Trigger } from "../data/types";
 import { ClipGrid } from "../browse/ClipGrid";
+import { FollowButton } from "../browse/FollowButton";
 import { PageFullscreenButton, usePageFullscreen } from "../shell/PageFullscreen";
 import { CommentsPanel } from "../drawer/CommentsPanel";
 import { CreatorPanel } from "../drawer/CreatorPanel";
@@ -449,6 +450,7 @@ export function Player({
               <button class="creator" type="button" onClick={() => push({ type: "creator", slug: clip.creator })}>
                 {creator}
               </button>
+              <FollowButton slug={clip.creator} lang={lang} />
               {views > 0 && (
                 <span class="stat view-count" title={t.views}>
                   <IconViews />
@@ -482,6 +484,7 @@ export function Player({
               <IconBack />
             </button>
             <span class="rail-title">{drawerTitle}</span>
+            {current?.type === "creator" ? <FollowButton slug={current.slug} lang={lang} /> : null}
           </div>
           {current?.type === "comments" && (
             <CommentsPanel

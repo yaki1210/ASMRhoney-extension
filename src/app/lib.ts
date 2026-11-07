@@ -80,6 +80,40 @@ export function creatorCover(creator: Creator) {
   return creator.coverUrl || creator.avatarUrl || "";
 }
 
+export function creatorPoster(creator: Creator) {
+  return creator.posterWebpUrl || creator.posterAvifUrl || creator.posterUrl || creator.coverUrl || creator.avatarUrl || "";
+}
+
+export function creatorAvatar(creator: Creator) {
+  return creator.avatarWebpUrl || creator.avatarAvifUrl || creator.avatarUrl || "";
+}
+
+export function creatorSpecialtyLabels(creator: Creator, triggers: Map<string, Trigger>, lang: Lang) {
+  const raw = creator.specialty;
+  const slugs = (Array.isArray(raw) ? raw : raw ? [raw] : []).filter((slug) => typeof slug === "string" && slug);
+  const labels: string[] = [];
+  for (const slug of slugs) {
+    if (!triggers.has(slug)) continue;
+    labels.push(triggerLabel(slug, triggers, lang));
+  }
+  return labels;
+}
+
+export function creatorProfileUrl(creator: Creator) {
+  const url = creator.profileSourceUrl || "";
+  return /^https?:\/\//i.test(url) ? url : "";
+}
+
+export function creatorProfileLabel(creator: Creator, fallback: string) {
+  const platform = (creator.profileSourcePlatform || "").trim().toLowerCase();
+  if (platform === "youtube") return "YouTube";
+  if (platform === "patreon") return "Patreon";
+  if (platform === "twitch") return "Twitch";
+  if (platform === "twitter" || platform === "x") return "X";
+  if (platform && platform !== "unknown") return platform.charAt(0).toUpperCase() + platform.slice(1);
+  return fallback;
+}
+
 export function fill(template: string, n: number) {
   return template.replace("{n}", String(n));
 }

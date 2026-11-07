@@ -1,17 +1,19 @@
 import { useMemo, useState } from "preact/hooks";
 import { creatorDirectoryGroup, type CreatorLang } from "../data/decide";
-import type { ClipListItem, Creator, Lang } from "../data/types";
+import type { ClipListItem, Creator, Lang, Trigger } from "../data/types";
 import { copy } from "../i18n";
-import { creatorCover, displayCreator, fill } from "../lib";
+import { creatorAvatar, creatorPoster, creatorSpecialtyLabels, displayCreator, fill } from "../lib";
+import { FollowButton } from "./FollowButton";
 
 type Props = {
   people: Creator[];
   catalog: ClipListItem[];
+  triggers: Map<string, Trigger>;
   lang: Lang;
   onOpen: (slug: string) => void;
 };
 
-export function CreatorsPage({ people, catalog, lang, onOpen }: Props) {
+export function CreatorsPage({ people, catalog, triggers, lang, onOpen }: Props) {
   // Language tabs follow the original directory: creatorGroup zh, otherwise 非中文.
   const t = copy(lang);
   const [q, setQ] = useState("");
@@ -67,18 +69,33 @@ export function CreatorsPage({ people, catalog, lang, onOpen }: Props) {
       </section>
       <div class="creator-grid">
         {list.map((person) => {
-          const src = creatorCover(person);
+          const src = creatorPoster(person);
+          const avatar = creatorAvatar(person);
           const n = counts.get(person.slug) || 0;
+          const specialties = creatorSpecialtyLabels(person, triggers, lang);
           return (
-            <button key={person.slug} class="creator-card" type="button" onClick={() => onOpen(person.slug)}>
-              <span class="creator-cover">{src ? <img src={src} alt="" loading="lazy" /> : null}</span>
-              <span class="creator-copy">
-                <b>{displayCreator(person.slug, new Map([[person.slug, person]]))}</b>
-                <i>
-                  {n} {t.creatorWorks}
-                </i>
-              </span>
-            </button>
+            <article key={person.slug} class="creator-card">
+              <button class="creator-open" type="button" onClick={() => onOpen(person.slug)}>
+                <span class="creator-cover">
+                  {src ? <img src={src} alt="" loading="lazy" /> : null}
+                  {avatar ? <img class="creator-avatar-badge" src={avatar} alt="" loading="lazy" /> : null}
+                </span>
+                <span class="creator-copy">
+                  <b>{displayCreator(person.slug, new Map([[person.slug, person]]))}</b>
+                  <i>
+                    {n} {t.creatorWorks}
+                  </i>
+                  {specialties.length > 0 && (
+                    <span class="creator-tags">
+                      {specialties.map((label) => (
+                        <span key={label}>{label}</span>
+                      ))}
+                    </span>
+                  )}
+                </span>
+              </button>
+              <FollowButton slug={person.slug} lang={lang} compact />
+            </article>
           );
         })}
       </div>
