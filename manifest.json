@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ASMRHoney Theater",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "沉浸式重写 asmrhoney.com 播放体验",
   "minimum_chrome_version": "111",
   "permissions": ["declarativeNetRequest"],
